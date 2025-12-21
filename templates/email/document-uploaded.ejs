@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Available - Nadoumi</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 40px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo {
+      font-size: 32px;
+      font-weight: bold;
+      color: #f97316;
+      margin-bottom: 10px;
+    }
+    h1 {
+      color: #1f2937;
+      font-size: 26px;
+      margin: 0 0 10px 0;
+    }
+    .success-banner {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .document-box {
+      background-color: #f0f9ff;
+      border: 2px solid #3b82f6;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 28px;
+      background-color: #f97316;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      margin: 20px 0;
+      font-weight: 600;
+      text-align: center;
+    }
+    .button-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+    .footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">Nadoumi</div>
+      <h1>📄 Document Available</h1>
+    </div>
+    
+    <div class="success-banner">
+      <p style="margin: 0; font-size: 18px; font-weight: 600; color: #065f46;">
+        Great News, <%= firstName %>!
+      </p>
+      <p style="margin: 10px 0 0 0; font-size: 14px; color: #047857;">
+        Your <%= documentType %> is now available
+      </p>
+    </div>
+    
+    <p>We are pleased to inform you that your <strong><%= documentType %></strong> for application <strong>(<%= applicationId %>)</strong> for <strong><%= scholarshipTitle %></strong> has been uploaded and is now available for download.</p>
+    
+    <div class="document-box">
+      <h3 style="margin-top: 0; color: #1e40af; font-size: 18px;">📋 Document Details</h3>
+      <p style="margin: 8px 0; color: #1e3a8a;"><strong>Document Type:</strong> <%= documentType %></p>
+      <p style="margin: 8px 0; color: #1e3a8a;"><strong>Application ID:</strong> <%= applicationId %></p>
+      <p style="margin: 8px 0; color: #1e3a8a;"><strong>Scholarship:</strong> <%= scholarshipTitle %></p>
+    </div>
+    
+    <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #92400e; font-size: 16px;">📋 Next Steps</h3>
+      <ul style="margin: 10px 0; padding-left: 20px; color: #78350f;">
+        <li>Log in to your student account</li>
+        <li>Navigate to your application details</li>
+        <li>Download the <%= documentType %></li>
+        <li>Keep a copy for your records</li>
+      </ul>
+    </div>
+    
+    <div class="button-container">
+      <a href="<%= frontendUrl || 'http://localhost:5173' %>/student/profile" class="button">
+        View Application & Download Document
+      </a>
+    </div>
+    
+    <p>If you have any questions about the document, please contact us.</p>
+    
+    <div class="footer">
+      <p>Best regards,<br>The Nadoumi Team</p>
+      <p>&copy; <%= new Date().getFullYear() %> Nadoumi. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+
