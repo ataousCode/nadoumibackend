@@ -36,32 +36,68 @@ class StudentService {
       isEmailVerified: false,
     })
 
-    const otp = otpService.generateOTP()
-    const otpExpires = otpService.generateOTPExpiration()
-
-    await studentRepository.saveOTP(student._id, otp, otpExpires)
+    // Auto-verify if email service is disabled
+    const emailEnabled = process.env.SMTP_USER && process.env.SMTP_PASS
     
-    // Send email without blocking - if it fails, user can still register
-    let emailSent = false
-    try {
-      await emailService.sendVerificationOTP(email, otp)
-      emailSent = true
-    } catch (error) {
-      console.error('Failed to send verification email (non-critical):', error.message)
-      // Don't throw - allow registration to complete
+    if (!emailEnabled) {
+      // No email service - auto verify and return token
+      await studentRepository.updateEmailVerification(student._id, true)
+      const token = generateToken({ id: student._id, email: student.email, type: 'student' })
+      
+      const studentObj = student.toObject()
+      delete studentObj.password
+      
+      return {
+        token,
+        student: {
+          id: student._id,
+          email: student.email,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          profilePicture: student.profilePicture,
+          isEmailVerified: true,
+        },
+        message: 'Registration successful. You are now logged in.',
+      }
     }
 
-    const studentObj = student.toObject()
-    delete studentObj.password
-    delete studentObj.emailVerificationOTP
-    delete studentObj.emailVerificationOTPExpires
-
-    return {
-      student: studentObj,
-      message: emailSent 
-        ? 'Registration successful. Please check your email for verification code.'
-        : 'Registration successful. Email service temporarily unavailable. Please use "Resend Code" to get your verification code.',
-      emailSent,
+    // Email service enabled - send OTP
+    const otp = otpService.generateOTP()
+    const otpExpires = otpService.generateOTPExpiration()
+    await studentRepository.saveOTP(student._id, otp, otpExpires)
+    
+    try {
+      await emailService.sendVerificationOTP(email, otp)
+      const studentObj = student.toObject()
+      delete studentObj.password
+      delete studentObj.emailVerificationOTP
+      delete studentObj.emailVerificationOTPExpires
+      
+      return {
+        student: studentObj,
+        message: 'Registration successful. Please check your email for verification code.',
+      }
+    } catch (error) {
+      console.error('Failed to send verification email:', error.message)
+      // Auto-verify on email failure
+      await studentRepository.updateEmailVerification(student._id, true)
+      const token = generateToken({ id: student._id, email: student.email, type: 'student' })
+      
+      const studentObj = student.toObject()
+      delete studentObj.password
+      
+      return {
+        token,
+        student: {
+          id: student._id,
+          email: student.email,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          profilePicture: student.profilePicture,
+          isEmailVerified: true,
+        },
+        message: 'Registration successful. You are now logged in.',
+      }
     }
   }
 
