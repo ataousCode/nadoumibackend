@@ -62,6 +62,76 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// Email service diagnostic endpoint
+app.get('/api/test-email', async (req, res) => {
+  try {
+    // Test 1: Check environment variables
+    const envCheck = {
+      SMTP_USER: process.env.SMTP_USER ? '✅ Set' : '❌ Missing',
+      SMTP_PASS: process.env.SMTP_PASS ? '✅ Set (length: ' + process.env.SMTP_PASS.length + ')' : '❌ Missing',
+      SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com (default)',
+      SMTP_PORT: process.env.SMTP_PORT || '587 (default)',
+      SMTP_SECURE: process.env.SMTP_SECURE || 'false (default)',
+      EMAIL_FROM: process.env.EMAIL_FROM || process.env.SMTP_USER || 'Not set',
+    }
+
+    // Test 2: Check if transporter exists
+    if (!emailConfig.transporter) {
+      emailConfig.initialize()
+    }
+
+    if (!emailConfig.transporter) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Email transporter could not be initialized',
+        env: envCheck
+      })
+    }
+
+    // Test 3: Verify SMTP connection
+    await emailConfig.verify()
+
+    // Test 4: Send test email
+    const testEmail = req.query.email || process.env.SMTP_USER
+    if (!testEmail) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No email address provided. Use ?email=your@email.com',
+        env: envCheck
+      })
+    }
+
+    await emailConfig.sendEmail({
+      to: testEmail,
+      subject: 'Test Email from Nadoumi Backend',
+      html: '<h1>✅ Email Service Works!</h1><p>If you received this, your SMTP configuration is correct.</p><p>Test performed at: ' + new Date().toISOString() + '</p>',
+    })
+
+    res.json({
+      status: '✅ success',
+      message: `Test email sent successfully to ${testEmail}`,
+      smtp_verified: true,
+      env: envCheck,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    res.status(500).json({
+      status: '❌ error',
+      message: error.message,
+      error_type: error.constructor.name,
+      error_code: error.code,
+      error_stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      env: {
+        SMTP_USER: process.env.SMTP_USER ? '✅ Set (' + process.env.SMTP_USER + ')' : '❌ Missing',
+        SMTP_PASS: process.env.SMTP_PASS ? '✅ Set (length: ' + process.env.SMTP_PASS.length + ' chars)' : '❌ Missing',
+        SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com (default)',
+        SMTP_PORT: process.env.SMTP_PORT || '587 (default)',
+        SMTP_SECURE: process.env.SMTP_SECURE || 'false (default)',
+      }
+    })
+  }
+})
+
 app.use('/api/admin', adminRoutes)
 app.use('/api/products', productsRoutes)
 app.use('/api/categories', categoriesRoutes)
