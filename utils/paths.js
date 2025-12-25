@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-export const getRootDir = () => path.join(__dirname, '../..')
+export const getRootDir = () => path.join(__dirname, '..')
 export const getUploadsDir = () => path.join(getRootDir(), 'uploads')
 export const getTemplatesDir = () => path.join(getRootDir(), 'templates/email')
 
