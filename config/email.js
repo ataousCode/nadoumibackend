@@ -19,6 +19,9 @@ class EmailConfig {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
+        connectionTimeout: 10000, // 10 seconds timeout
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
       })
       console.log('Email service configured for Gmail SMTP')
     } else if (process.env.NODE_ENV === 'development') {
@@ -38,6 +41,9 @@ class EmailConfig {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
+        connectionTimeout: 10000, // 10 seconds timeout
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
       })
       console.log('Email service configured for SMTP')
     }

@@ -40,7 +40,16 @@ class StudentService {
     const otpExpires = otpService.generateOTPExpiration()
 
     await studentRepository.saveOTP(student._id, otp, otpExpires)
-    await emailService.sendVerificationOTP(email, otp)
+    
+    // Send email without blocking - if it fails, user can still register
+    let emailSent = false
+    try {
+      await emailService.sendVerificationOTP(email, otp)
+      emailSent = true
+    } catch (error) {
+      console.error('Failed to send verification email (non-critical):', error.message)
+      // Don't throw - allow registration to complete
+    }
 
     const studentObj = student.toObject()
     delete studentObj.password
@@ -49,7 +58,10 @@ class StudentService {
 
     return {
       student: studentObj,
-      message: 'Registration successful. Please check your email for verification code.',
+      message: emailSent 
+        ? 'Registration successful. Please check your email for verification code.'
+        : 'Registration successful. Email service temporarily unavailable. Please use "Resend Code" to get your verification code.',
+      emailSent,
     }
   }
 
@@ -65,7 +77,10 @@ class StudentService {
 
     const token = generateToken({ id: student._id, email: student.email, type: 'student' })
 
-    await emailService.sendWelcomeEmail(student.email, student.firstName)
+    // Send welcome email in background (non-blocking)
+    emailService.sendWelcomeEmail(student.email, student.firstName).catch(error => {
+      console.error('Failed to send welcome email (non-critical):', error.message)
+    })
 
     return {
       token,
@@ -94,10 +109,16 @@ class StudentService {
     const otpExpires = otpService.generateOTPExpiration()
 
     await studentRepository.saveOTP(student._id, otp, otpExpires)
-    await emailService.sendVerificationOTP(email, otp)
-
-    return {
-      message: 'Verification code has been sent to your email',
+    
+    // Send email without blocking
+    try {
+      await emailService.sendVerificationOTP(email, otp)
+      return {
+        message: 'Verification code has been sent to your email',
+      }
+    } catch (error) {
+      console.error('Failed to send verification email:', error.message)
+      throw new AppError('Email service is currently unavailable. Please try again later.', 503)
     }
   }
 
