@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import bcrypt from 'bcryptjs'
+import { hashPassword, comparePassword } from '../utils/password.js'
 
 const adminSchema = new mongoose.Schema({
   email: {
@@ -27,13 +27,13 @@ const adminSchema = new mongoose.Schema({
 // Hash password before saving
 adminSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next()
-  this.password = await bcrypt.hash(this.password, 10)
+  this.password = await hashPassword(this.password)
   next()
 })
 
 // Compare password method
 adminSchema.methods.comparePassword = async function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password)
+  return comparePassword(candidatePassword, this.password)
 }
 
 export default mongoose.model('Admin', adminSchema)

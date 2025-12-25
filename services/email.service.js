@@ -1,29 +1,16 @@
 import emailConfig from '../config/email.js'
-import otpService from './otp.service.js'
-import studentRepository from '../repositories/student.repository.js'
-import { NotFoundError, AppError } from '../utils/errors.js'
+import { FRONTEND_URL } from '../config/constants.js'
+import { AppError } from '../utils/errors.js'
 
-/**
- * Email Service
- * Handles all email-related operations
- */
 class EmailService {
-  /**
-   * Send OTP email for email verification
-   */
   async sendVerificationOTP(email, otp) {
     try {
-      const html = await emailConfig.renderTemplate('verify-email', {
-        otp,
-        email,
-      })
-
+      const html = await emailConfig.renderTemplate('verify-email', { otp, email })
       await emailConfig.sendEmail({
         to: email,
         subject: 'Verify Your Email Address - Nadoumi',
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending verification OTP:', error)
@@ -31,24 +18,15 @@ class EmailService {
     }
   }
 
-  /**
-   * Send password reset email
-   */
   async sendPasswordResetEmail(email, resetToken) {
     try {
-      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`
-
-      const html = await emailConfig.renderTemplate('reset-password', {
-        resetUrl,
-        email,
-      })
-
+      const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`
+      const html = await emailConfig.renderTemplate('reset-password', { resetUrl, email })
       await emailConfig.sendEmail({
         to: email,
         subject: 'Reset Your Password - Nadoumi',
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending password reset email:', error)
@@ -56,33 +34,24 @@ class EmailService {
     }
   }
 
-  /**
-   * Send welcome email after successful registration
-   */
   async sendWelcomeEmail(email, firstName) {
     try {
       const html = await emailConfig.renderTemplate('welcome', {
         firstName,
         email,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl: FRONTEND_URL,
       })
-
       await emailConfig.sendEmail({
         to: email,
         subject: 'Welcome to Nadoumi!',
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending welcome email:', error)
-      // Don't throw error for welcome email - it's not critical
     }
   }
 
-  /**
-   * Send interview notification email to student
-   */
   async sendInterviewNotification(email, firstName, interviewData) {
     try {
       const html = await emailConfig.renderTemplate('interview-notification', {
@@ -96,15 +65,13 @@ class EmailService {
         videoCallLink: interviewData.videoCallLink,
         notes: interviewData.notes,
         adminNote: interviewData.adminNote,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl: FRONTEND_URL,
       })
-
       await emailConfig.sendEmail({
         to: email,
         subject: `Interview Scheduled - Application ${interviewData.applicationId} - Nadoumi`,
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending interview notification email:', error)
@@ -112,9 +79,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Send interview passed notification email to student
-   */
   async sendInterviewPassedNotification(email, firstName, data) {
     try {
       const html = await emailConfig.renderTemplate('interview-passed', {
@@ -123,15 +87,13 @@ class EmailService {
         applicationId: data.applicationId,
         scholarshipTitle: data.scholarshipTitle,
         adminNote: data.adminNote,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl: FRONTEND_URL,
       })
-
       await emailConfig.sendEmail({
         to: email,
         subject: `Interview Completed - Application ${data.applicationId} - Nadoumi`,
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending interview passed notification email:', error)
@@ -139,9 +101,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Send interview failed notification email to student
-   */
   async sendInterviewFailedNotification(email, firstName, data) {
     try {
       const html = await emailConfig.renderTemplate('interview-failed', {
@@ -151,15 +110,13 @@ class EmailService {
         scholarshipTitle: data.scholarshipTitle,
         failureReason: data.failureReason,
         adminNote: data.adminNote,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl: FRONTEND_URL,
       })
-
       await emailConfig.sendEmail({
         to: email,
         subject: `Application Update - Application ${data.applicationId} - Nadoumi`,
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending interview failed notification email:', error)
@@ -167,9 +124,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Send revoked notification email to student
-   */
   async sendRevokedNotification(email, firstName, data) {
     try {
       const html = await emailConfig.renderTemplate('application-revoked', {
@@ -180,15 +134,13 @@ class EmailService {
         revocationReason: data.revocationReason,
         revocationDetails: data.revocationDetails,
         adminNote: data.adminNote,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl: FRONTEND_URL,
       })
-
       await emailConfig.sendEmail({
         to: email,
         subject: `Application Revoked - Action Required - Application ${data.applicationId} - Nadoumi`,
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending revoked notification email:', error)
@@ -196,9 +148,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Send document uploaded notification email to student
-   */
   async sendDocumentUploadedNotification(email, firstName, data) {
     try {
       const html = await emailConfig.renderTemplate('document-uploaded', {
@@ -207,15 +156,13 @@ class EmailService {
         applicationId: data.applicationId,
         scholarshipTitle: data.scholarshipTitle,
         documentType: data.documentType,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl: FRONTEND_URL,
       })
-
       await emailConfig.sendEmail({
         to: email,
         subject: `${data.documentType} Available - Application ${data.applicationId} - Nadoumi`,
         html,
       })
-
       return true
     } catch (error) {
       console.error('Error sending document uploaded notification email:', error)
@@ -223,13 +170,10 @@ class EmailService {
     }
   }
 
-  /**
-   * Send new application notification email to admin
-   */
   async sendNewApplicationNotificationToAdmin(applicationData) {
     try {
       const adminEmail = process.env.ADMIN_EMAIL || 'almouslecka@gmail.com'
-      const adminUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/applications/${applicationData.applicationId || applicationData.id || applicationData._id}`
+      const adminUrl = `${FRONTEND_URL}/admin/applications/${applicationData.applicationId || applicationData.id || applicationData._id}`
       
       const html = await emailConfig.renderTemplate('new-application-admin', {
         applicationId: applicationData.applicationId || applicationData.id || applicationData._id,
@@ -253,11 +197,9 @@ class EmailService {
       return true
     } catch (error) {
       console.error('Error sending admin notification email:', error)
-      // Don't throw error - admin notification failure shouldn't block application submission
       return false
     }
   }
 }
 
 export default new EmailService()
-

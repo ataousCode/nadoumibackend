@@ -1,31 +1,11 @@
 import Joi from 'joi'
+import { email, password, phone, otp, name } from './validators.js'
 
 export const registerStudentSchema = Joi.object({
-  firstName: Joi.string().trim().min(1).max(50).required()
-    .messages({
-      'string.empty': 'First name is required',
-      'string.min': 'First name must be at least 1 character',
-      'string.max': 'First name must not exceed 50 characters',
-    }),
-  lastName: Joi.string().trim().min(1).max(50).required()
-    .messages({
-      'string.empty': 'Last name is required',
-      'string.min': 'Last name must be at least 1 character',
-      'string.max': 'Last name must not exceed 50 characters',
-    }),
-  email: Joi.string().email().lowercase().trim().required()
-    .messages({
-      'string.email': 'Please provide a valid email address',
-      'string.empty': 'Email is required',
-    }),
-  password: Joi.string().min(8).max(128).required()
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .messages({
-      'string.min': 'Password must be at least 8 characters',
-      'string.max': 'Password must not exceed 128 characters',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
-      'string.empty': 'Password is required',
-    }),
+  firstName: name('First name').required(),
+  lastName: name('Last name').required(),
+  email: email().required(),
+  password: password().required(),
   country: Joi.string().trim().min(2).max(100).required()
     .messages({
       'string.empty': 'Country is required',
@@ -40,21 +20,7 @@ export const registerStudentSchema = Joi.object({
       'string.max': 'Passport number must not exceed 20 characters',
       'string.pattern.base': 'Passport number must contain only uppercase letters and numbers',
     }),
-  phone: Joi.string().trim().allow('', null).optional()
-    .custom((value, helpers) => {
-      // Allow empty string or null
-      if (!value || value.trim() === '') {
-        return value
-      }
-      // If provided, must match phone pattern
-      if (!/^\+?[1-9]\d{1,14}$/.test(value)) {
-        return helpers.error('string.pattern.base', { value })
-      }
-      return value
-    })
-    .messages({
-      'string.pattern.base': 'Please provide a valid phone number (e.g., +1234567890)',
-    }),
+  phone: phone().optional(),
   dateOfBirth: Joi.date().max('now').optional()
     .messages({
       'date.max': 'Date of birth cannot be in the future',
@@ -62,11 +28,7 @@ export const registerStudentSchema = Joi.object({
 })
 
 export const loginStudentSchema = Joi.object({
-  email: Joi.string().email().lowercase().trim().required()
-    .messages({
-      'string.email': 'Please provide a valid email address',
-      'string.empty': 'Email is required',
-    }),
+  email: email().required(),
   password: Joi.string().required()
     .messages({
       'string.empty': 'Password is required',
@@ -74,33 +36,16 @@ export const loginStudentSchema = Joi.object({
 })
 
 export const verifyOTPSchema = Joi.object({
-  email: Joi.string().email().lowercase().trim().required()
-    .messages({
-      'string.email': 'Please provide a valid email address',
-      'string.empty': 'Email is required',
-    }),
-  otp: Joi.string().length(6).pattern(/^\d+$/).required()
-    .messages({
-      'string.length': 'OTP must be 6 digits',
-      'string.pattern.base': 'OTP must contain only numbers',
-      'string.empty': 'OTP is required',
-    }),
+  email: email().required(),
+  otp: otp().required(),
 })
 
 export const resendOTPSchema = Joi.object({
-  email: Joi.string().email().lowercase().trim().required()
-    .messages({
-      'string.email': 'Please provide a valid email address',
-      'string.empty': 'Email is required',
-    }),
+  email: email().required(),
 })
 
 export const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().lowercase().trim().required()
-    .messages({
-      'string.email': 'Please provide a valid email address',
-      'string.empty': 'Email is required',
-    }),
+  email: email().required(),
 })
 
 export const resetPasswordSchema = Joi.object({
@@ -108,20 +53,13 @@ export const resetPasswordSchema = Joi.object({
     .messages({
       'string.empty': 'Reset token is required',
     }),
-  password: Joi.string().min(8).max(128).required()
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .messages({
-      'string.min': 'Password must be at least 8 characters',
-      'string.max': 'Password must not exceed 128 characters',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
-      'string.empty': 'Password is required',
-    }),
+  password: password().required(),
 })
 
 export const updateProfileSchema = Joi.object({
-  firstName: Joi.string().trim().min(1).max(50).optional(),
-  lastName: Joi.string().trim().min(1).max(50).optional(),
-  phone: Joi.string().trim().pattern(/^\+?[1-9]\d{1,14}$/).allow('').optional(),
+  firstName: name('First name').optional(),
+  lastName: name('Last name').optional(),
+  phone: phone().optional(),
   dateOfBirth: Joi.date().max('now').optional(),
   nationality: Joi.string().trim().max(100).optional(),
   country: Joi.string().trim().min(2).max(100).optional(),
@@ -140,19 +78,10 @@ export const updateProfileSchema = Joi.object({
   }).optional(),
 })
 
-// Change password DTO
 export const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required()
     .messages({
       'string.empty': 'Current password is required',
     }),
-  newPassword: Joi.string().min(8).max(128).required()
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .messages({
-      'string.min': 'New password must be at least 8 characters',
-      'string.max': 'New password must not exceed 128 characters',
-      'string.pattern.base': 'New password must contain at least one uppercase letter, one lowercase letter, and one number',
-      'string.empty': 'New password is required',
-    }),
+  newPassword: password().required(),
 })
-

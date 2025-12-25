@@ -71,7 +71,8 @@ universitySchema.pre('save', function(next) {
   next()
 })
 
-universitySchema.index({ universityId: 1 })
+// Indexes for performance
+// universityId already has unique index from schema definition (line 15-18)
 universitySchema.index({ name: 1 })
 universitySchema.index({ city: 1, province: 1 })
 universitySchema.index({ status: 1 })

@@ -1,9 +1,5 @@
 import mongoose from 'mongoose'
 
-/**
- * Database connection configuration
- * Handles MongoDB connection with proper error handling and reconnection logic
- */
 class Database {
   constructor() {
     this.connection = null
@@ -21,7 +17,6 @@ class Database {
       
       console.log('✅ Connected to MongoDB')
       
-      // Handle connection events
       mongoose.connection.on('error', (err) => {
         console.error('❌ MongoDB connection error:', err)
       })
@@ -50,4 +45,3 @@ class Database {
 }
 
 export default new Database()
-

@@ -1,20 +1,18 @@
-import jwt from 'jsonwebtoken'
 import Admin from '../models/Admin.js'
 import Student from '../models/Student.js'
+import { verifyToken } from '../utils/jwt.js'
+import { AuthenticationError } from '../utils/errors.js'
+import { extractBearerToken } from '../utils/token.js'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-
-// Admin authentication middleware
 export const authenticate = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
+    const token = extractBearerToken(req)
     if (!token) {
       return res.status(401).json({ error: 'No token provided' })
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET)
+    const decoded = verifyToken(token)
     
-    // Check if it's an admin token
     if (decoded.type !== 'admin') {
       return res.status(401).json({ error: 'Invalid token type' })
     }
@@ -28,21 +26,22 @@ export const authenticate = async (req, res, next) => {
     req.admin = admin
     next()
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return res.status(401).json({ error: error.message })
+    }
     res.status(401).json({ error: 'Invalid token' })
   }
 }
 
-// Student authentication middleware
 export const authenticateStudent = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '')
+    const token = extractBearerToken(req)
     if (!token) {
       return res.status(401).json({ error: 'No token provided' })
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET)
+    const decoded = verifyToken(token)
     
-    // Check if it's a student token
     if (decoded.type !== 'student') {
       return res.status(401).json({ error: 'Invalid token type' })
     }
@@ -56,11 +55,14 @@ export const authenticateStudent = async (req, res, next) => {
     req.student = { 
       _id: student._id,
       id: student._id, 
-      email: student.email 
+      email: student.email,
+      profilePicture: student.profilePicture
     }
     next()
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return res.status(401).json({ error: error.message })
+    }
     res.status(401).json({ error: 'Invalid token' })
   }
 }
-

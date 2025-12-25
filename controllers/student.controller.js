@@ -1,56 +1,41 @@
 import studentService from '../services/student.service.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
+import { ValidationError } from '../utils/errors.js'
+import { sendSuccess, sendCreated } from '../utils/response.js'
+import { replaceUploadedFile } from '../utils/fileHelper.js'
 
 class StudentController {
   register = asyncHandler(async (req, res) => {
     const result = await studentService.register(req.body)
-    res.status(201).json({
-      success: true,
-      data: result,
-    })
+    sendCreated(res, result)
   })
 
   verifyEmail = asyncHandler(async (req, res) => {
     const { email, otp } = req.body
     const result = await studentService.verifyEmail(email, otp)
-    res.json({
-      success: true,
-      data: result,
-    })
+    sendSuccess(res, result)
   })
 
   resendOTP = asyncHandler(async (req, res) => {
     const { email } = req.body
     const result = await studentService.resendVerificationOTP(email)
-    res.json({
-      success: true,
-      data: result,
-    })
+    sendSuccess(res, result)
   })
 
   login = asyncHandler(async (req, res) => {
     const { email, password } = req.body
     const result = await studentService.login(email, password)
-    res.json({
-      success: true,
-      data: result,
-    })
+    sendSuccess(res, result)
   })
 
   getProfile = asyncHandler(async (req, res) => {
     const student = await studentService.getProfile(req.student.id)
-    res.json({
-      success: true,
-      data: student,
-    })
+    sendSuccess(res, student)
   })
 
   updateProfile = asyncHandler(async (req, res) => {
     const student = await studentService.updateProfile(req.student.id, req.body)
-    res.json({
-      success: true,
-      data: student,
-    })
+    sendSuccess(res, student)
   })
 
   changePassword = asyncHandler(async (req, res) => {
@@ -60,38 +45,45 @@ class StudentController {
       currentPassword,
       newPassword
     )
-    res.json({
-      success: true,
-      data: result,
-    })
+    sendSuccess(res, result)
   })
 
   forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body
     const result = await studentService.forgotPassword(email)
-    res.json({
-      success: true,
-      data: result,
-    })
+    sendSuccess(res, result)
   })
 
   resetPassword = asyncHandler(async (req, res) => {
     const { token, password } = req.body
     const result = await studentService.resetPassword(token, password)
-    res.json({
-      success: true,
-      data: result,
-    })
+    sendSuccess(res, result)
   })
 
   getAll = asyncHandler(async (req, res) => {
     const students = await studentService.getAll()
-    res.json({
-      success: true,
-      data: students,
-    })
+    sendSuccess(res, students)
+  })
+
+  updateProfilePicture = asyncHandler(async (req, res) => {
+    if (!req.file) {
+      throw new ValidationError('No file provided')
+    }
+
+    const newFilePath = await replaceUploadedFile(
+      req.student?.profilePicture,
+      req.file.filename,
+      'profile-pictures/students'
+    )
+    
+    const result = await studentService.updateProfilePicture(
+      req.student.id,
+      newFilePath,
+      req.student?.profilePicture
+    )
+
+    sendSuccess(res, { profilePicture: result.profilePicture })
   })
 }
 
-export default new StudentController()
-
+export default new StudentController();
