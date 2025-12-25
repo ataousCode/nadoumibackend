@@ -2,6 +2,7 @@
   "name": "nadoumi-server",
   "version": "1.0.0",
   "license": "UNLICENSED",
+  "private": true,
   "type": "module",
   "description": "Nadoumi Backend API Server",
   "scripts": {
@@ -19,7 +20,7 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.0.0-rc.4",
     "nodemailer": "^6.9.7"
   },
   "devDependencies": {
