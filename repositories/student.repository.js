@@ -1,58 +1,64 @@
-import Student from '../models/Student.js'
-import { NotFoundError, ConflictError } from '../utils/errors.js'
-import mongoose from 'mongoose'
+import prisma from '../config/prisma.js'
+import { NotFoundError } from '../utils/errors.js'
+import { handlePrismaError } from '../utils/prisma.js'
+import { Prisma } from '@prisma/client'
 
 class StudentRepository {
   async create(studentData) {
     try {
-      const student = new Student(studentData)
-      await student.save()
-      return student
+      return await prisma.student.create({
+        data: studentData
+      })
     } catch (error) {
-      if (error.code === 11000) {
-        const field = Object.keys(error.keyPattern)[0]
-        throw new ConflictError(`${field} already exists`)
-      }
-      throw error
+      handlePrismaError(error, 'Student')
     }
   }
 
   async findByEmail(email) {
-    const student = await Student.findOne({ email: email.toLowerCase() })
-    return student
+    return await prisma.student.findUnique({
+      where: { email: email.toLowerCase() }
+    })
   }
 
   async findById(id) {
-    const student = await Student.findById(id)
+    const student = await prisma.student.findUnique({
+      where: { id }
+    })
     if (!student) {
       throw new NotFoundError('Student')
     }
     return student
   }
 
-  async findAll() {
-    return await Student.find().sort({ createdAt: -1 })
+  async findAll({ skip, take } = {}) {
+    return await prisma.student.findMany({
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    })
+  }
+
+  async count() {
+    return await prisma.student.count()
   }
 
   async findByEmailOrNull(email) {
-    return await Student.findOne({ email: email.toLowerCase() })
+    return await prisma.student.findUnique({
+      where: { email: email.toLowerCase() }
+    })
   }
 
   async findByPassportNumber(passportNumber) {
-    return await Student.findOne({ passportNumber: passportNumber.toUpperCase() })
+    return await prisma.student.findUnique({
+      where: { passportNumber: passportNumber.toUpperCase() }
+    })
   }
 
   async update(id, updateData) {
-    const student = await this.findById(id)
-    
-    Object.keys(updateData).forEach((key) => {
-      if (updateData[key] !== undefined) {
-        student[key] = updateData[key]
-      }
+    return await prisma.student.update({
+      where: { id },
+      data: updateData
     })
-    
-    await student.save()
-    return student
   }
 
   async updateEmailVerification(id, isVerified) {
@@ -60,69 +66,70 @@ class StudentRepository {
   }
 
   async updatePassword(id, hashedPassword) {
-    const student = await this.findById(id)
-    student.password = hashedPassword
-    await student.save()
-    return student
+    return await prisma.student.update({
+      where: { id },
+      data: { password: hashedPassword }
+    })
   }
 
   async savePasswordResetToken(id, token, expiresAt) {
-    const student = await this.findById(id)
-    student.passwordResetToken = token
-    student.passwordResetExpires = expiresAt
-    await student.save()
-    return student
+    return await prisma.student.update({
+      where: { id },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: expiresAt
+      }
+    })
   }
 
   async findByPasswordResetToken(token) {
-    return await Student.findOne({
-      passwordResetToken: token,
-      passwordResetExpires: { $gt: Date.now() },
-    }).select('+passwordResetToken +passwordResetExpires')
+    return await prisma.student.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpires: { gt: new Date() }
+      }
+    })
   }
 
   async clearPasswordResetToken(id) {
-    const student = await this.findById(id)
-    student.passwordResetToken = undefined
-    student.passwordResetExpires = undefined
-    await student.save()
-    return student
+    return await prisma.student.update({
+      where: { id },
+      data: {
+        passwordResetToken: null,
+        passwordResetExpires: null
+      }
+    })
   }
 
   async saveOTP(id, otp, expiresAt) {
-    const student = await this.findById(id)
-    student.emailVerificationOTP = otp
-    student.emailVerificationOTPExpires = expiresAt
-    await student.save()
-    return student
+    return await prisma.student.update({
+      where: { id },
+      data: {
+        emailVerificationOTP: otp,
+        emailVerificationOTPExpires: expiresAt
+      }
+    })
   }
 
   async verifyOTP(email, otp) {
-    const student = await Student.findOne({ email: email.toLowerCase() })
-      .select('+emailVerificationOTP +emailVerificationOTPExpires')
-    
-    if (!student) {
-      throw new NotFoundError('Student')
-    }
-
-    if (
-      !student.emailVerificationOTP ||
-      student.emailVerificationOTP !== otp ||
-      !student.emailVerificationOTPExpires ||
-      student.emailVerificationOTPExpires < Date.now()
-    ) {
-      return null
-    }
-
+    const student = await prisma.student.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        emailVerificationOTP: otp,
+        emailVerificationOTPExpires: { gt: new Date() }
+      }
+    })
     return student
   }
 
   async clearOTP(id) {
-    const student = await this.findById(id)
-    student.emailVerificationOTP = undefined
-    student.emailVerificationOTPExpires = undefined
-    await student.save()
-    return student
+    return await prisma.student.update({
+      where: { id },
+      data: {
+        emailVerificationOTP: null,
+        emailVerificationOTPExpires: null
+      }
+    })
   }
 }
 

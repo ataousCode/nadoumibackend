@@ -1,30 +1,38 @@
 import express from 'express'
 import applicationController from '../controllers/application.controller.js'
-import { authenticate, authenticateStudent } from '../middleware/auth.js'
+import { authenticate } from '../middleware/auth.js'
 import { validate } from '../middleware/validator.js'
+import { strictLimiter, standardLimiter } from '../middleware/rateLimiter.js'
 import {
   createApplicationSchema,
+  publicCreateApplicationSchema,
   updateApplicationSchema,
   updateApplicationStatusSchema,
   uploadAdminDocumentSchema,
 } from '../dto/application.dto.js'
 import { createApplicationDocumentUpload } from '../utils/upload.js'
+import { ROLES } from '../config/constants.js'
 
 const router = express.Router()
 const adminDocUpload = createApplicationDocumentUpload()
+const adminAuth   = authenticate(ROLES.ADMIN)
+const studentAuth = authenticate(ROLES.STUDENT)
 
-router.get('/', authenticate, applicationController.getAll)
-router.get('/status/:status', authenticate, applicationController.getByStatus)
-router.get('/scholarship/:scholarshipId', authenticate, applicationController.getByScholarship)
-router.get('/:id', authenticate, applicationController.getById)
-router.put('/:id/status', authenticate, validate(updateApplicationStatusSchema), applicationController.updateStatus)
-router.delete('/:id', authenticate, applicationController.delete)
-router.get('/search/:term', authenticate, applicationController.search)
-router.put('/:id/admin-documents', authenticate, adminDocUpload.single('file'), validate(uploadAdminDocumentSchema), applicationController.uploadAdminDocument)
-router.get('/student/me', authenticateStudent, applicationController.getStudentApplications)
-router.get('/student/me/:id', authenticateStudent, applicationController.getStudentApplicationById)
-router.post('/student/me', authenticateStudent, validate(createApplicationSchema), applicationController.createApplication)
-router.put('/student/me/:id', authenticateStudent, validate(updateApplicationSchema), applicationController.updateApplication)
-router.post('/', applicationController.create)
+router.get('/',                    adminAuth,                                                                      applicationController.getAll)
+router.get('/status/:status',      adminAuth,                                                                      applicationController.getByStatus)
+router.get('/scholarship/:scholarshipId', adminAuth,                                                               applicationController.getByScholarship)
+router.get('/search/:term',        adminAuth,                                                                      applicationController.search)
+router.get('/student/me',          studentAuth,                                                                    applicationController.getStudentApplications)
+router.get('/student/me/:id',      studentAuth,                                                                    applicationController.getStudentApplicationById)
+router.post('/student/me',         studentAuth,  validate(createApplicationSchema),                                applicationController.createApplication)
+router.put('/student/me/:id',      studentAuth,  validate(updateApplicationSchema),                                applicationController.updateApplication)
+router.get('/:id',                 adminAuth,                                                                      applicationController.getById)
+router.put('/:id/status',          adminAuth,    validate(updateApplicationStatusSchema),                          applicationController.updateStatus)
+router.put('/:id/admin-documents', adminAuth,    adminDocUpload.single('file'), validate(uploadAdminDocumentSchema), applicationController.uploadAdminDocument)
+router.delete('/:id',              adminAuth,                                                                      applicationController.delete)
+
+// Public inquiry form (StudentAdmission page) — no auth, but validated + rate-limited
+router.post('/', standardLimiter, validate(publicCreateApplicationSchema), applicationController.create)
 
 export default router
+

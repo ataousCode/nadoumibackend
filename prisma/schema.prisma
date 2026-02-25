@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  name           String   @default("Admin")
+  profilePicture String?
+  createdAt      DateTime @default(now())
+
+  scholarships Scholarship[]
+}
+
+model University {
+  id                    String           @id @default(uuid())
+  universityId          String           @unique
+  name                  String
+  nameInChinese         String?
+  logo                  String?
+  bannerImage           String?
+  city                  String?
+  province              String?
+  type                  UniversityType   @default(Public)
+  foundedYear           Int?
+  totalStudents         Int?
+  internationalStudents Int?
+  facultyCount          Int?
+  numberOfPrograms      Int              @default(0)
+  description           String?
+  advantages            String[]
+  albums                Json? // JSONB: Array of albumSchema
+  rankings              Json? // JSONB: Array of rankingSchema
+  status                UniversityStatus @default(active)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  scholarships Scholarship[]
+}
+
+enum UniversityType {
+  Public
+  Private
+}
+
+enum UniversityStatus {
+  active
+  inactive
+  draft
+}
+
+model Scholarship {
+  id                               String              @id @default(uuid())
+  scholarshipId                    String              @unique
+  title                            String
+  titleInChinese                   String?
+  universityJson                   Json? // Nested university data as in Mongoose
+  universityId                     String?
+  university                       University?         @relation(fields: [universityId], references: [id])
+  description                      String
+  programCategory                  ProgramCategory     @default(Bachelor)
+  field                            String?
+  programName                      String?
+  degree                           String?
+  duration                         Int?
+  intake                           String?
+  applicationDeadline              DateTime
+  scholarshipCategory              ScholarshipCategory @default(Partial)
+  scholarshipDuration              Int?
+  originalTuitionFee               Float?
+  tuitionFeeAfterScholarship       Float?
+  accommodationFee                 Json? // JSONB
+  accommodationFeeAfterScholarship Json? // JSONB
+  scholarshipPolicy                String?
+  applicantRequirements            Json? // JSONB
+  applicationDocuments             Json? // JSONB
+  additionalDocuments              Json? // JSONB
+  feeStructure                     Json? // JSONB
+  specialNotes                     String[]
+  requirements                     Json? // JSONB
+  benefits                         Json? // JSONB
+  startDate                        DateTime?
+  availableSlots                   Int                 @default(1)
+  status                           ScholarshipStatus   @default(draft)
+  category                         String?
+  tags                             String[]
+  createdAt                        DateTime            @default(now())
+  updatedAt                        DateTime            @updatedAt
+  adminId                          String?
+  createdBy                        Admin?              @relation(fields: [adminId], references: [id])
+
+  applications Application[]
+}
+
+enum ProgramCategory {
+  Language
+  Bachelor
+  Master
+  PhD
+}
+
+enum ScholarshipCategory {
+  Self_funded  @map("Self-funded")
+  Partial
+  CSC
+  Province
+  Universities
+  HSK
+  Type_A       @map("Type A")
+  Type_B       @map("Type B")
+  Type_C       @map("Type C")
+  Other
+}
+
+enum ScholarshipStatus {
+  draft
+  published
+  closed
+  active
+  inactive
+}
+
+model Student {
+  id                          String    @id @default(uuid())
+  email                       String    @unique
+  password                    String
+  firstName                   String
+  lastName                    String
+  country                     String
+  passportNumber              String    @unique
+  phone                       String?
+  profilePicture              String?
+  dateOfBirth                 DateTime?
+  nationality                 String?
+  isEmailVerified             Boolean   @default(false)
+  emailVerificationOTP        String?
+  emailVerificationOTPExpires DateTime?
+  passwordResetToken          String?
+  passwordResetExpires        DateTime?
+  profile                     Json? // JSONB: bio, education, languages, achievements
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  applications Application[]
+}
+
+model Application {
+  id                String            @id @default(uuid())
+  applicationId     String            @unique
+  studentId         String
+  student           Student           @relation(fields: [studentId], references: [id])
+  scholarshipId     String
+  scholarship       Scholarship       @relation(fields: [scholarshipId], references: [id])
+  legacyId          String?           @map("legacy_id")
+  applicant         Json? // JSONB: Legacy applicant info
+  fields            Json? // JSONB
+  personalInfo      Json? // JSONB
+  contactInfo       Json? // JSONB
+  familyInfo        Json? // JSONB
+  preferences       Json? // JSONB
+  documents         Json? // JSONB
+  status            ApplicationStatus @default(pending)
+  statusHistory     Json? // JSONB
+  submittedAt       DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  interviewDetails  Json? // JSONB
+  rejectionDetails  Json? // JSONB
+  acceptedAt        DateTime?
+  admissionDocument Json? // JSONB (path, uploadedAt, uploadedBy)
+  jw202Document     Json? // JSONB (path, uploadedAt, uploadedBy)
+}
+
+enum ApplicationStatus {
+  pending
+  received
+  under_review
+  interview
+  interview_passed
+  interview_failed
+  accepted
+  rejected
+  revoked
+  waitlisted
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  type      NotificationType   @default(email)
+  template  String
+  recipient String
+  subject   String?
+  content   Json // Data used in the template
+  status    NotificationStatus @default(pending)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+enum NotificationType {
+  email
+  sms
+  push
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}

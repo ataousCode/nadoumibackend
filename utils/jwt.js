@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken'
-import { JWT_SECRET, JWT_EXPIRES_IN } from '../config/jwt.js'
+import { JWT_SECRET, JWT_EXPIRES_IN_VALUE } from '../config/constants.js'
 import { AuthenticationError } from './errors.js'
 
-export const generateToken = (payload, expiresIn = JWT_EXPIRES_IN) => {
+export const generateToken = (payload, expiresIn = JWT_EXPIRES_IN_VALUE) => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn })
 }
 

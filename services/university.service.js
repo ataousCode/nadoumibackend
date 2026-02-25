@@ -1,7 +1,8 @@
 import universityRepository from '../repositories/university.repository.js'
 import { ValidationError } from '../utils/errors.js'
 import { generateUniversityId } from '../utils/idGenerator.js'
-import { PAGINATION_DEFAULT_PAGE, PAGINATION_DEFAULT_LIMIT } from '../config/constants.js'
+import { PAGINATION_DEFAULT_PAGE, PAGINATION_DEFAULT_LIMIT, UNIVERSITY_STATUS } from '../config/constants.js'
+import { parsePagination, buildPaginatedResponse } from '../utils/pagination.js'
 
 class UniversityService {
   generateUniversityId() {
@@ -9,74 +10,52 @@ class UniversityService {
   }
 
   async getAll(filters = {}) {
-    const { city, province, type, search, page = PAGINATION_DEFAULT_PAGE, limit = PAGINATION_DEFAULT_LIMIT, status, isAdmin } = filters
-    
+    const {
+      city, province, type, search,
+      page = PAGINATION_DEFAULT_PAGE, limit = PAGINATION_DEFAULT_LIMIT,
+      status, isAdmin
+    } = filters
+
     const query = {}
-    const queryStatus = status || (isAdmin ? undefined : 'active')
-    
-    if (queryStatus) {
-      query.status = queryStatus
-    }
-    
-    if (city) query.city = city
-    if (province) query.province = province
-    if (type) query.type = type
+    const queryStatus = status || (isAdmin ? undefined : UNIVERSITY_STATUS.ACTIVE)
+
+    if (queryStatus) query.status = queryStatus
+    if (city)        query.city = city
+    if (province)    query.province = province
+    if (type)        query.type = type
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { nameInChinese: { $regex: search, $options: 'i' } },
-        { city: { $regex: search, $options: 'i' } },
-        { province: { $regex: search, $options: 'i' } }
+      query.OR = [
+        { name:           { contains: search, mode: 'insensitive' } },
+        { nameInChinese:  { contains: search, mode: 'insensitive' } },
+        { city:           { contains: search, mode: 'insensitive' } },
+        { province:       { contains: search, mode: 'insensitive' } },
       ]
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
-    
+    const { skip, take } = parsePagination(page, limit)
+
     const [universities, total] = await Promise.all([
-      universityRepository.findAll(query)
-        .skip(skip)
-        .limit(parseInt(limit)),
-      universityRepository.count(query)
+      universityRepository.findAll({ where: query, skip, take }),
+      universityRepository.count(query),
     ])
 
-    return {
-      universities,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
-    }
+    return buildPaginatedResponse('universities', universities, total, page, limit)
   }
 
   async getById(id) {
-    const university = await universityRepository.findByAnyId(id)
-    await university.populate('programs')
-    await university.populate('scholarships')
-    return university
+    return universityRepository.findByAnyId(id)
   }
 
   async create(universityData) {
     const data = {
       ...universityData,
-      universityId: universityData.universityId || this.generateUniversityId()
+      universityId: universityData.universityId || this.generateUniversityId(),
     }
-    
-    try {
-      return await universityRepository.create(data)
-    } catch (error) {
-      if (error.code === 11000) {
-        throw new ValidationError('University ID already exists')
-      }
-      throw error
-    }
+    return universityRepository.create(data)
   }
 
   async update(id, updateData) {
-    const university = await universityRepository.update(id, updateData)
-    const populated = await universityRepository.findAll({ _id: university._id })
-    return populated[0]
+    return universityRepository.update(id, updateData)
   }
 
   async delete(id) {
@@ -85,11 +64,10 @@ class UniversityService {
   }
 
   async updateStatus(id, status) {
-    if (!['active', 'inactive', 'draft'].includes(status)) {
+    if (!Object.values(UNIVERSITY_STATUS).includes(status)) {
       throw new ValidationError('Invalid status')
     }
-
-    return await universityRepository.updateStatus(id, status)
+    return universityRepository.updateStatus(id, status)
   }
 }
 

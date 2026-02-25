@@ -45,3 +45,5 @@ temp/
 *.tmp
 
 *.env
+
+/generated/prisma

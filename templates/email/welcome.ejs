@@ -4,90 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Welcome to Nadoumi!</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    .container {
-      background-color: #ffffff;
-      border-radius: 8px;
-      padding: 40px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .logo {
-      font-size: 32px;
-      font-weight: bold;
-      color: #f97316;
-      margin-bottom: 10px;
-    }
-    h1 {
-      color: #1f2937;
-      font-size: 26px;
-      margin: 0 0 10px 0;
-    }
-    .welcome-message {
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      padding: 20px;
-      border-radius: 8px;
-      margin: 20px 0;
-      text-align: center;
-    }
-    .features {
-      margin: 30px 0;
-    }
-    .feature-item {
-      padding: 10px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .feature-item:last-child {
-      border-bottom: none;
-    }
-    .feature-icon {
-      display: inline-block;
-      width: 24px;
-      height: 24px;
-      background-color: #f97316;
-      color: white;
-      border-radius: 50%;
-      text-align: center;
-      line-height: 24px;
-      margin-right: 10px;
-      font-weight: bold;
-    }
-    .button {
-      display: inline-block;
-      padding: 14px 28px;
-      background-color: #f97316;
-      color: #ffffff;
-      text-decoration: none;
-      border-radius: 6px;
-      margin: 20px 0;
-      font-weight: 600;
-      text-align: center;
-    }
-    .button-container {
-      text-align: center;
-      margin: 30px 0;
-    }
-    .footer {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-      text-align: center;
-      font-size: 12px;
-      color: #9ca3af;
-    }
-  </style>
+  <style><%- include('../styles/email-base.css') %></style>
 </head>
 <body>
   <div class="container">
@@ -96,8 +13,8 @@
       <h1>Welcome, <%= firstName %>! 🎉</h1>
     </div>
     
-    <div class="welcome-message">
-      <p style="margin: 0; font-size: 18px; font-weight: 600; color: #92400e;">
+    <div class="welcome-banner">
+      <p style="margin: 0; font-size: 18px; font-weight: 600;" class="text-warning">
         Your email has been verified successfully!
       </p>
     </div>
@@ -105,7 +22,7 @@
     <p>We're thrilled to have you join the Nadoumi community! Your account is now active and ready to use.</p>
     
     <div class="features">
-      <h2 style="color: #1f2937; font-size: 20px; margin-bottom: 15px;">What you can do now:</h2>
+      <h2>What you can do now:</h2>
       
       <div class="feature-item">
         <span class="feature-icon">🎓</span>
@@ -143,4 +60,3 @@
   </div>
 </body>
 </html>
-

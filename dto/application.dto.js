@@ -1,31 +1,48 @@
-import Joi from 'joi'
-import { mongoId } from './validators.js'
+import Joi from "joi";
+import { uuid } from "./validators.js";
+import { APPLICATION_STATUS, DOCUMENT_TYPES } from "../config/constants.js";
 
+/**
+ * Schema for the authenticated student application (via /student/me).
+ * Requires a valid scholarshipId UUID.
+ */
 export const createApplicationSchema = Joi.object({
-  scholarshipId: mongoId('Scholarship ID').required(),
+  scholarshipId: uuid("Scholarship ID").required(),
   preferences: Joi.object().optional(),
   documents: Joi.object().optional(),
-})
+});
+
+/**
+ * Schema for the public inquiry form (StudentAdmission page).
+ * No auth required — validates the applicant info sent from the public form.
+ */
+export const publicCreateApplicationSchema = Joi.object({
+  id: Joi.string().optional(),
+  submittedAt: Joi.alternatives().try(Joi.date(), Joi.number()).optional(),
+  status: Joi.string().optional(),
+  applicant: Joi.object({
+    firstName: Joi.string().trim().min(1).required(),
+    lastName:  Joi.string().trim().min(1).required(),
+    email:     Joi.string().email().lowercase().required(),
+    phone:     Joi.string().allow('').optional(),
+  }).required(),
+  desiredProgram: Joi.string().allow('').optional(),
+  fields:    Joi.object().optional(),
+  documents: Joi.object().optional(),
+});
 
 export const updateApplicationSchema = Joi.object({
   preferences: Joi.object().optional(),
   documents: Joi.object().optional(),
-})
+});
 
 export const updateApplicationStatusSchema = Joi.object({
-  status: Joi.string().valid(
-    'pending',
-    'under_review',
-    'interview',
-    'interview_passed',
-    'interview_failed',
-    'accepted',
-    'rejected',
-    'revoked'
-  ).required()
+  status: Joi.string()
+    .valid(...Object.values(APPLICATION_STATUS))
+    .required()
     .messages({
-      'any.only': 'Invalid status',
-      'string.empty': 'Status is required',
+      "any.only": "Invalid status",
+      "string.empty": "Status is required",
     }),
   note: Joi.string().optional(),
   metadata: Joi.object({
@@ -40,12 +57,11 @@ export const updateApplicationStatusSchema = Joi.object({
     revocationDetails: Joi.string().optional(),
     interviewFailureReason: Joi.string().optional(),
   }).optional(),
-})
+});
 
 export const uploadAdminDocumentSchema = Joi.object({
-  documentType: Joi.string().valid('admission', 'jw202').required()
-    .messages({
-      'any.only': 'Document type must be "admission" or "jw202"',
-      'string.empty': 'Document type is required',
-    }),
-})
+  documentType: Joi.string().valid(...Object.values(DOCUMENT_TYPES)).required().messages({
+    "any.only": `Document type must be one of: ${Object.values(DOCUMENT_TYPES).join(', ')}`,
+    "string.empty": "Document type is required",
+  }),
+});

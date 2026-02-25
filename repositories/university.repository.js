@@ -1,57 +1,76 @@
-import University from '../models/University.js'
-import mongoose from 'mongoose'
+import prisma from '../config/prisma.js'
 import { NotFoundError } from '../utils/errors.js'
+import { isUuid, handlePrismaError } from '../utils/prisma.js'
 
 class UniversityRepository {
   async findByAnyId(id) {
-    const query = []
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query.push({ _id: id })
-    }
-    query.push({ universityId: id })
+    const uuidId = isUuid(id) ? id : undefined
     
-    const university = await University.findOne({ $or: query })
+    const university = await prisma.university.findFirst({
+      where: {
+        OR: [
+          uuidId ? { id } : undefined,
+          { universityId: id }
+        ].filter(Boolean)
+      }
+    })
+
     if (!university) {
       throw new NotFoundError('University')
     }
     return university
   }
 
-  async findAll(query = {}) {
-    return await University.find(query)
-      .sort({ createdAt: -1 })
-      .populate('programs')
-      .populate('scholarships')
+  async findAll(params = {}) {
+    const { where = {}, skip, take } = params
+    return await prisma.university.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        scholarships: true
+      }
+    })
   }
 
   async count(query = {}) {
-    return await University.countDocuments(query)
+    return await prisma.university.count({
+      where: query
+    })
   }
 
   async create(universityData) {
-    const university = new University(universityData)
-    await university.save()
-    return university
+    try {
+      return await prisma.university.create({
+        data: universityData
+      })
+    } catch (error) {
+      handlePrismaError(error, 'University')
+    }
   }
 
   async update(id, updateData) {
     const university = await this.findByAnyId(id)
-    Object.assign(university, updateData)
-    await university.save()
-    return university
+    return await prisma.university.update({
+      where: { id: university.id },
+      data: updateData
+    })
   }
 
   async delete(id) {
     const university = await this.findByAnyId(id)
-    await University.findByIdAndDelete(university._id)
-    return university
+    return await prisma.university.delete({
+      where: { id: university.id }
+    })
   }
 
   async updateStatus(id, status) {
     const university = await this.findByAnyId(id)
-    university.status = status
-    await university.save()
-    return university
+    return await prisma.university.update({
+      where: { id: university.id },
+      data: { status }
+    })
   }
 }
 

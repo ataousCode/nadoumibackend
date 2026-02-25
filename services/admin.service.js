@@ -1,7 +1,9 @@
 import adminRepository from '../repositories/admin.repository.js'
 import { generateToken, verifyToken } from '../utils/jwt.js'
+import { comparePassword } from '../utils/password.js'
 import { AuthenticationError, ValidationError } from '../utils/errors.js'
-import { PASSWORD_MIN_LENGTH } from '../config/constants.js'
+import { PASSWORD_MIN_LENGTH, ROLES } from '../config/constants.js'
+import { sanitize } from '../utils/response.js'
 
 class AdminService {
   async login(email, password) {
@@ -14,21 +16,16 @@ class AdminService {
       throw new AuthenticationError('Invalid email or password')
     }
 
-    const isValid = await admin.comparePassword(password)
+    const isValid = await comparePassword(password, admin.password)
     if (!isValid) {
       throw new AuthenticationError('Invalid email or password')
     }
 
-    const token = generateToken({ id: admin._id, email: admin.email, type: 'admin' })
+    const token = generateToken({ id: admin.id, email: admin.email, type: ROLES.ADMIN })
 
     return {
       token,
-      user: {
-        id: admin._id,
-        email: admin.email,
-        name: admin.name,
-        profilePicture: admin.profilePicture
-      }
+      admin: sanitize(admin)
     }
   }
 
@@ -41,7 +38,7 @@ class AdminService {
     const admin = await adminRepository.findByIdWithoutPassword(decoded.id)
     
     return {
-      id: admin._id,
+      id: admin.id,
       email: admin.email,
       name: admin.name,
       profilePicture: admin.profilePicture
@@ -51,7 +48,7 @@ class AdminService {
   async getProfile(adminId) {
     const admin = await adminRepository.findByIdWithoutPassword(adminId)
     return {
-      id: admin._id,
+      id: admin.id,
       email: admin.email,
       name: admin.name,
       profilePicture: admin.profilePicture,
@@ -62,7 +59,7 @@ class AdminService {
   async updateProfile(adminId, updateData) {
     const admin = await adminRepository.update(adminId, updateData)
     return {
-      id: admin._id,
+      id: admin.id,
       email: admin.email,
       name: admin.name,
       profilePicture: admin.profilePicture
@@ -76,7 +73,7 @@ class AdminService {
 
     const admin = await adminRepository.findById(adminId)
     
-    const isValid = await admin.comparePassword(currentPassword)
+    const isValid = await comparePassword(currentPassword, admin.password)
     if (!isValid) {
       throw new AuthenticationError('Current password is incorrect')
     }

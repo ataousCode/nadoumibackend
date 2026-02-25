@@ -2,9 +2,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import { getUploadPath } from './paths.js'
-import { MAX_PROFILE_PICTURE_SIZE, MAX_DOCUMENT_SIZE, MAX_VIDEO_SIZE } from '../config/constants.js'
-
-const IMAGE_TYPES = /jpeg|jpg|png|gif|webp/
+import { MAX_PROFILE_PICTURE_SIZE, MAX_DOCUMENT_SIZE, MAX_VIDEO_SIZE, IMAGE_TYPES } from '../config/constants.js'
 
 const createStorage = (destinationPath) => {
   return multer.diskStorage({
@@ -41,19 +39,8 @@ export const createProfilePictureUpload = (userType) => {
   })
 }
 
-export const createCategoryIconUpload = () => {
-  return multer({
-    storage: createStorage('categories'),
-    fileFilter: imageFilter
-  })
-}
+// No category or product uploads required as these modules were removed
 
-export const createProductUpload = () => {
-  return multer({
-    storage: createStorage('products'),
-    fileFilter: imageFilter
-  })
-}
 
 export const createApplicationDocumentUpload = () => {
   return multer({

@@ -1,29 +1,54 @@
-import Admin from '../models/Admin.js'
-import Student from '../models/Student.js'
+import adminRepository from '../repositories/admin.repository.js'
+import studentRepository from '../repositories/student.repository.js'
 import { verifyToken } from '../utils/jwt.js'
 import { AuthenticationError } from '../utils/errors.js'
 import { extractBearerToken } from '../utils/token.js'
+import { ROLES } from '../config/constants.js'
 
-export const authenticate = async (req, res, next) => {
+const roleConfig = {
+  [ROLES.ADMIN]: {
+    getUser: (id) => adminRepository.findByIdWithoutPassword(id),
+    reqKey: 'admin',
+    cookieName: 'adminToken',
+  },
+  [ROLES.STUDENT]: {
+    getUser: (id) => studentRepository.findById(id),
+    reqKey: 'student',
+    cookieName: 'studentToken',
+  },
+}
+
+/**
+ * Extract JWT from the request.
+ * Priority: Authorization header (Bearer) → httpOnly cookie.
+ * This allows both browser (cookie) and API/mobile (header) clients.
+ */
+function extractToken(req, cookieName) {
+  return extractBearerToken(req) || (req.cookies && req.cookies[cookieName]) || null
+}
+
+export const authenticate = (role) => async (req, res, next) => {
   try {
-    const token = extractBearerToken(req)
+    const { getUser, reqKey, cookieName } = roleConfig[role]
+    const token = extractToken(req, cookieName)
+
     if (!token) {
       return res.status(401).json({ error: 'No token provided' })
     }
 
     const decoded = verifyToken(token)
-    
-    if (decoded.type !== 'admin') {
+
+    if (decoded.type !== role) {
       return res.status(401).json({ error: 'Invalid token type' })
     }
 
-    const admin = await Admin.findById(decoded.id).select('-password')
-    
-    if (!admin) {
+    const user = await getUser(decoded.id)
+
+    if (!user) {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
-    req.admin = admin
+    req[reqKey] = user
     next()
   } catch (error) {
     if (error instanceof AuthenticationError) {
@@ -33,36 +58,3 @@ export const authenticate = async (req, res, next) => {
   }
 }
 
-export const authenticateStudent = async (req, res, next) => {
-  try {
-    const token = extractBearerToken(req)
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-
-    const decoded = verifyToken(token)
-    
-    if (decoded.type !== 'student') {
-      return res.status(401).json({ error: 'Invalid token type' })
-    }
-
-    const student = await Student.findById(decoded.id).select('-password')
-    
-    if (!student) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-
-    req.student = { 
-      _id: student._id,
-      id: student._id, 
-      email: student.email,
-      profilePicture: student.profilePicture
-    }
-    next()
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return res.status(401).json({ error: error.message })
-    }
-    res.status(401).json({ error: 'Invalid token' })
-  }
-}

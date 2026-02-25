@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer'
 import ejs from 'ejs'
 import { getTemplatePath } from '../utils/paths.js'
+import { SMTP_DEFAULTS } from './constants.js'
+import logger from '../utils/logger.js'
 
 class EmailConfig {
   constructor() {
@@ -10,22 +12,22 @@ class EmailConfig {
   initialize() {
     if (process.env.NODE_ENV === 'development') {
       this.transporter = nodemailer.createTransport({
-        host: process.env.MAILDEV_HOST || 'localhost',
-        port: parseInt(process.env.MAILDEV_PORT || '1025'),
+        host: SMTP_DEFAULTS.MAILDEV_HOST,
+        port: SMTP_DEFAULTS.MAILDEV_PORT,
         secure: false,
         auth: null,
       })
-      console.log('Email service configured for MailDev (development)')
+      logger.debug('Email service configured for MailDev (development)')
       return
     }
 
     // Production: Use port 465 with SSL (works better on cloud platforms like Render)
-    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
-    const smtpPort = parseInt(process.env.SMTP_PORT || '465')
+    const smtpHost = SMTP_DEFAULTS.HOST
+    const smtpPort = SMTP_DEFAULTS.PORT
     const smtpSecure = process.env.SMTP_SECURE === 'false' ? false : (smtpPort === 465)
     
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('⚠️  SMTP credentials not configured. Email service disabled.')
+      logger.warn('SMTP credentials not configured. Email service disabled.')
       return
     }
 
@@ -45,7 +47,7 @@ class EmailConfig {
         minVersion: 'TLSv1.2'
       }
     })
-    console.log(`📧 Email service configured: ${smtpHost}:${smtpPort} (secure: ${smtpSecure})`)
+    logger.info('Email service configured', { host: smtpHost, port: smtpPort, secure: smtpSecure })
   }
 
   async renderTemplate(templateName, data = {}) {
@@ -53,7 +55,7 @@ class EmailConfig {
       const templatePath = getTemplatePath(templateName)
       return await ejs.renderFile(templatePath, data)
     } catch (error) {
-      console.error(`Error rendering template ${templateName}:`, error)
+      logger.error(`Error rendering template`, { template: templateName, error: error.message })
       throw new Error(`Failed to render email template: ${templateName}`)
     }
   }
@@ -69,7 +71,7 @@ class EmailConfig {
 
     try {
       const mailOptions = {
-        from: process.env.EMAIL_FROM || process.env.SMTP_USER || 'Nadoumi <noreply@nadoumi.com>',
+        from: SMTP_DEFAULTS.FROM,
         to,
         subject,
         html,
@@ -77,10 +79,10 @@ class EmailConfig {
       }
 
       const info = await this.transporter.sendMail(mailOptions)
-      console.log(`✅ Email sent to ${to}:`, info.messageId)
+      logger.info('Email sent', { to, messageId: info.messageId })
       return info
     } catch (error) {
-      console.error('❌ Error sending email:', error.message)
+      logger.error('Error sending email', { to, error: error.message })
       if (error.code === 'ETIMEDOUT') {
         throw new Error('Email service timeout. Please check SMTP port configuration.')
       }

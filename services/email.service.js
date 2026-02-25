@@ -1,60 +1,86 @@
 import emailConfig from '../config/email.js'
 import { FRONTEND_URL } from '../config/constants.js'
-import { AppError } from '../utils/errors.js'
+import notificationRepository from '../repositories/notification.repository.js'
+import queueService from './queue.service.js'
+import logger from '../utils/logger.js'
 
 class EmailService {
-  async sendVerificationOTP(email, otp) {
+  // Internal method to actually send the email (called by Worker)
+  async _performSend(recipient, subject, template, content) {
+    const html = await emailConfig.renderTemplate(template, content)
+    return await emailConfig.sendEmail({
+      to: recipient,
+      subject,
+      html,
+    })
+  }
+
+  // Base method to audit and queue a notification
+  async _queueNotification(type, recipient, subject, template, content) {
     try {
-      const html = await emailConfig.renderTemplate('verify-email', { otp, email })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: 'Verify Your Email Address - Nadoumi',
-        html,
+      const notification = await notificationRepository.create({
+        type,
+        recipient,
+        subject,
+        template,
+        content,
+        status: 'pending'
       })
-      return true
+
+      await queueService.addNotificationJob({
+        notificationId: notification.id,
+        type,
+        recipient,
+        subject,
+        template,
+        content
+      })
+
+      return notification
     } catch (error) {
-      console.error('Error sending verification OTP:', error)
-      throw new AppError('Failed to send verification email', 500)
+      logger.error('Error queuing notification', { error: error.message, recipient, template })
+      return null
     }
+  }
+
+  async sendVerificationOTP(email, otp) {
+    return this._queueNotification(
+      'email',
+      email,
+      'Verify Your Email Address - Nadoumi',
+      'verify-email',
+      { otp, email }
+    )
   }
 
   async sendPasswordResetEmail(email, resetToken) {
-    try {
-      const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`
-      const html = await emailConfig.renderTemplate('reset-password', { resetUrl, email })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: 'Reset Your Password - Nadoumi',
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending password reset email:', error)
-      throw new AppError('Failed to send password reset email', 500)
-    }
+    const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`
+    return this._queueNotification(
+      'email',
+      email,
+      'Reset Your Password - Nadoumi',
+      'reset-password',
+      { resetUrl, email }
+    )
   }
 
   async sendWelcomeEmail(email, firstName) {
-    try {
-      const html = await emailConfig.renderTemplate('welcome', {
-        firstName,
-        email,
-        frontendUrl: FRONTEND_URL,
-      })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: 'Welcome to Nadoumi!',
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending welcome email:', error)
-    }
+    return this._queueNotification(
+      'email',
+      email,
+      'Welcome to Nadoumi!',
+      'welcome',
+      { firstName, email, frontendUrl: FRONTEND_URL }
+    )
   }
 
   async sendInterviewNotification(email, firstName, interviewData) {
-    try {
-      const html = await emailConfig.renderTemplate('interview-notification', {
+    return this._queueNotification(
+      'email',
+      email,
+      `Interview Scheduled - Application ${interviewData.applicationId} - Nadoumi`,
+      'interview-notification',
+      {
         firstName,
         email,
         applicationId: interviewData.applicationId,
@@ -66,44 +92,34 @@ class EmailService {
         notes: interviewData.notes,
         adminNote: interviewData.adminNote,
         frontendUrl: FRONTEND_URL,
-      })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: `Interview Scheduled - Application ${interviewData.applicationId} - Nadoumi`,
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending interview notification email:', error)
-      throw new AppError('Failed to send interview notification email', 500)
-    }
+      }
+    )
   }
 
   async sendInterviewPassedNotification(email, firstName, data) {
-    try {
-      const html = await emailConfig.renderTemplate('interview-passed', {
+    return this._queueNotification(
+      'email',
+      email,
+      `Interview Completed - Application ${data.applicationId} - Nadoumi`,
+      'interview-passed',
+      {
         firstName,
         email,
         applicationId: data.applicationId,
         scholarshipTitle: data.scholarshipTitle,
         adminNote: data.adminNote,
         frontendUrl: FRONTEND_URL,
-      })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: `Interview Completed - Application ${data.applicationId} - Nadoumi`,
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending interview passed notification email:', error)
-      throw new AppError('Failed to send interview passed notification email', 500)
-    }
+      }
+    )
   }
 
   async sendInterviewFailedNotification(email, firstName, data) {
-    try {
-      const html = await emailConfig.renderTemplate('interview-failed', {
+    return this._queueNotification(
+      'email',
+      email,
+      `Application Update - Application ${data.applicationId} - Nadoumi`,
+      'interview-failed',
+      {
         firstName,
         email,
         applicationId: data.applicationId,
@@ -111,22 +127,17 @@ class EmailService {
         failureReason: data.failureReason,
         adminNote: data.adminNote,
         frontendUrl: FRONTEND_URL,
-      })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: `Application Update - Application ${data.applicationId} - Nadoumi`,
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending interview failed notification email:', error)
-      throw new AppError('Failed to send interview failed notification email', 500)
-    }
+      }
+    )
   }
 
   async sendRevokedNotification(email, firstName, data) {
-    try {
-      const html = await emailConfig.renderTemplate('application-revoked', {
+    return this._queueNotification(
+      'email',
+      email,
+      `Application Revoked - Action Required - Application ${data.applicationId} - Nadoumi`,
+      'application-revoked',
+      {
         firstName,
         email,
         applicationId: data.applicationId,
@@ -135,47 +146,37 @@ class EmailService {
         revocationDetails: data.revocationDetails,
         adminNote: data.adminNote,
         frontendUrl: FRONTEND_URL,
-      })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: `Application Revoked - Action Required - Application ${data.applicationId} - Nadoumi`,
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending revoked notification email:', error)
-      throw new AppError('Failed to send revoked notification email', 500)
-    }
+      }
+    )
   }
 
   async sendDocumentUploadedNotification(email, firstName, data) {
-    try {
-      const html = await emailConfig.renderTemplate('document-uploaded', {
+    return this._queueNotification(
+      'email',
+      email,
+      `${data.documentType} Available - Application ${data.applicationId} - Nadoumi`,
+      'document-uploaded',
+      {
         firstName,
         email,
         applicationId: data.applicationId,
         scholarshipTitle: data.scholarshipTitle,
         documentType: data.documentType,
         frontendUrl: FRONTEND_URL,
-      })
-      await emailConfig.sendEmail({
-        to: email,
-        subject: `${data.documentType} Available - Application ${data.applicationId} - Nadoumi`,
-        html,
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending document uploaded notification email:', error)
-      throw new AppError('Failed to send document uploaded notification email', 500)
-    }
+      }
+    )
   }
 
   async sendNewApplicationNotificationToAdmin(applicationData) {
-    try {
-      const adminEmail = process.env.ADMIN_EMAIL || 'almouslecka@gmail.com'
-      const adminUrl = `${FRONTEND_URL}/admin/applications/${applicationData.applicationId || applicationData.id || applicationData._id}`
-      
-      const html = await emailConfig.renderTemplate('new-application-admin', {
+    const adminEmail = process.env.ADMIN_EMAIL
+    const adminUrl = `${FRONTEND_URL}/admin/applications/${applicationData.applicationId || applicationData.id || applicationData._id}`
+
+    return this._queueNotification(
+      'email',
+      adminEmail,
+      `New Application Received - ${applicationData.applicationId || applicationData.id || 'N/A'} - Nadoumi`,
+      'new-application-admin',
+      {
         applicationId: applicationData.applicationId || applicationData.id || applicationData._id,
         studentName: applicationData.studentName || `${applicationData.student?.firstName || ''} ${applicationData.student?.lastName || ''}`.trim() || 'N/A',
         studentEmail: applicationData.studentEmail || applicationData.student?.email || 'N/A',
@@ -184,21 +185,9 @@ class EmailService {
         scholarshipTitle: applicationData.scholarshipTitle || applicationData.scholarship?.title || 'N/A',
         universityName: applicationData.universityName || applicationData.scholarship?.university?.name || applicationData.scholarship?.university || null,
         submittedAt: applicationData.submittedAt ? new Date(applicationData.submittedAt).toLocaleString() : new Date().toLocaleString(),
-        adminUrl: adminUrl,
-      })
-
-      await emailConfig.sendEmail({
-        to: adminEmail,
-        subject: `New Application Received - ${applicationData.applicationId || applicationData.id || 'N/A'} - Nadoumi`,
-        html,
-      })
-
-      console.log(`📧 Admin notification sent to ${adminEmail} for application ${applicationData.applicationId || applicationData.id}`)
-      return true
-    } catch (error) {
-      console.error('Error sending admin notification email:', error)
-      return false
-    }
+        adminUrl,
+      }
+    )
   }
 }
 

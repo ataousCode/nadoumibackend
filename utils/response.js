@@ -1,14 +1,3 @@
-/**
- * Response Utilities
- * Standardized response formatting for all API endpoints
- */
-
-/**
- * Send successful response
- * @param {object} res - Express response object
- * @param {*} data - Data to send
- * @param {number} statusCode - HTTP status code (default: 200)
- */
 export const sendSuccess = (res, data, statusCode = 200) => {
   return res.status(statusCode).json({
     success: true,
@@ -16,22 +5,10 @@ export const sendSuccess = (res, data, statusCode = 200) => {
   })
 }
 
-/**
- * Send created response (201)
- * @param {object} res - Express response object
- * @param {*} data - Data to send
- */
 export const sendCreated = (res, data) => {
   return sendSuccess(res, data, 201)
 }
 
-/**
- * Send error response
- * @param {object} res - Express response object
- * @param {string} message - Error message
- * @param {number} statusCode - HTTP status code (default: 400)
- * @param {object} errors - Validation errors object (optional)
- */
 export const sendError = (res, message, statusCode = 400, errors = null) => {
   const response = {
     success: false,
@@ -48,11 +25,6 @@ export const sendError = (res, message, statusCode = 400, errors = null) => {
   return res.status(statusCode).json(response)
 }
 
-/**
- * Get error code from status code
- * @param {number} statusCode - HTTP status code
- * @returns {string} Error code
- */
 function getErrorCode(statusCode) {
   const codes = {
     400: 'BAD_REQUEST',
@@ -68,3 +40,19 @@ function getErrorCode(statusCode) {
   return codes[statusCode] || 'UNKNOWN_ERROR'
 }
 
+/**
+ * Removes sensitive fields from an object (e.g., password, salt, OTPs)
+ */
+export const sanitize = (obj, sensitiveFields = ['password', 'emailVerificationOTP', 'emailVerificationOTPExpires', 'passwordResetToken', 'passwordResetExpires']) => {
+  if (!obj) return null
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitize(item, sensitiveFields))
+  }
+  
+  const sanitized = { ...obj }
+  sensitiveFields.forEach(field => {
+    delete sanitized[field]
+  })
+  return sanitized
+}

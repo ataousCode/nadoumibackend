@@ -1,7 +1,8 @@
-import Joi from 'joi'
-import { mongoId } from './validators.js'
+import Joi from "joi";
+import { uuid } from "./validators.js";
+import { SCHOLARSHIP_STATUS } from "../config/constants.js";
 
-const scholarshipStatuses = ['draft', 'published', 'closed', 'active', 'inactive']
+const scholarshipStatuses = Object.values(SCHOLARSHIP_STATUS);
 
 export const createScholarshipSchema = Joi.object({
   title: Joi.string().required(),
@@ -11,10 +12,12 @@ export const createScholarshipSchema = Joi.object({
   category: Joi.string().optional(),
   programCategory: Joi.string().optional(),
   scholarshipCategory: Joi.string().optional(),
-  universityRef: mongoId('University ID').optional(),
+  universityId: uuid("University ID").optional(),
   applicationDeadline: Joi.date().optional(),
-  status: Joi.string().valid(...scholarshipStatuses).optional(),
-})
+  status: Joi.string()
+    .valid(...scholarshipStatuses)
+    .optional(),
+});
 
 export const updateScholarshipSchema = Joi.object({
   title: Joi.string().optional(),
@@ -24,16 +27,20 @@ export const updateScholarshipSchema = Joi.object({
   category: Joi.string().optional(),
   programCategory: Joi.string().optional(),
   scholarshipCategory: Joi.string().optional(),
-  universityRef: mongoId('University ID').optional(),
+  universityId: uuid("University ID").optional(),
   applicationDeadline: Joi.date().optional(),
-  status: Joi.string().valid(...scholarshipStatuses).optional(),
+  status: Joi.string()
+    .valid(...scholarshipStatuses)
+    .optional(),
   scholarshipId: Joi.string().optional(),
-})
+});
 
 export const updateScholarshipStatusSchema = Joi.object({
-  status: Joi.string().valid(...scholarshipStatuses).required()
+  status: Joi.string()
+    .valid(...scholarshipStatuses)
+    .required()
     .messages({
-      'any.only': 'Invalid status',
-      'string.empty': 'Status is required',
+      "any.only": "Invalid status",
+      "string.empty": "Status is required",
     }),
-})
+});

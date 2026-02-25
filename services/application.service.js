@@ -1,9 +1,20 @@
+import logger from '../utils/logger.js'
 import applicationRepository from '../repositories/application.repository.js'
-import Application from '../models/Application.js'
-import Scholarship from '../models/Scholarship.js'
+import scholarshipRepository from '../repositories/scholarship.repository.js'
 import emailService from './email.service.js'
 import { NotFoundError, ValidationError } from '../utils/errors.js'
 import { generateApplicationId } from '../utils/idGenerator.js'
+import { APPLICATION_STATUS, SCHOLARSHIP_STATUS, PAGINATION_DEFAULT_PAGE, PAGINATION_DEFAULT_LIMIT } from '../config/constants.js'
+import { parsePagination, buildPaginatedResponse } from '../utils/pagination.js'
+
+// Internal helper — try to send an email without blocking the main flow
+async function tryEmail(fn, label) {
+  try {
+    await fn()
+  } catch (error) {
+    logger.error(label, { error: error.message })
+  }
+}
 
 class ApplicationService {
   generateApplicationId() {
@@ -11,310 +22,211 @@ class ApplicationService {
   }
 
   async getAll(filters = {}) {
-    const { scholarshipId, status } = filters
-    const query = {}
-    
-    if (scholarshipId) query.scholarship = scholarshipId
-    if (status) query.status = status
+    const { scholarshipId, status, page = PAGINATION_DEFAULT_PAGE, limit = PAGINATION_DEFAULT_LIMIT } = filters
+    const where = {}
+    if (scholarshipId) where.scholarshipId = scholarshipId
+    if (status)        where.status = status
 
-    const applications = await Application.find(query)
-      .populate('student', 'firstName lastName email phone nationality dateOfBirth country passportNumber')
-      .populate('scholarship', 'title university')
-      .sort({ submittedAt: -1 })
-    
-    return applications
+    const { skip, take } = parsePagination(page, limit)
+
+    const [applications, total] = await Promise.all([
+      applicationRepository.findAllWithRelations(where, { skip, take }),
+      applicationRepository.count(where),
+    ])
+
+    return buildPaginatedResponse('applications', applications, total, page, limit)
   }
 
   async getByStatus(status) {
-    return await Application.find({ status })
-      .sort({ submittedAt: -1 })
+    return applicationRepository.findByStatus(status)
   }
 
   async getByScholarship(scholarshipId) {
-    return await Application.find({ scholarship: scholarshipId })
-      .populate('student', 'firstName lastName email phone nationality')
-      .populate('scholarship')
-      .sort({ submittedAt: -1 })
+    return applicationRepository.findByScholarshipId(scholarshipId)
   }
 
   async getById(id) {
-    const application = await applicationRepository.findByAnyId(id)
-    await application.populate('student', 'firstName lastName email phone nationality dateOfBirth country passportNumber')
-    await application.populate('scholarship')
-    return application
+    return applicationRepository.findByAnyId(id)
   }
 
   async getStudentApplications(studentId) {
-    return await Application.find({ student: studentId })
-      .populate('scholarship')
-      .sort({ submittedAt: -1 })
+    return applicationRepository.findByStudentId(studentId)
   }
 
   async getStudentApplicationById(studentId, applicationId) {
-    const application = await Application.findOne({
-      _id: applicationId,
-      student: studentId
-    })
-      .populate('scholarship')
-      .populate('student')
-    
-    if (!application) {
-      throw new NotFoundError('Application')
-    }
-    
-    return application
+    return applicationRepository.findByStudentAndId(studentId, applicationId)
   }
 
   async createApplication(studentId, applicationData) {
     const { scholarshipId, preferences, documents } = applicationData
 
-    if (!scholarshipId) {
-      throw new ValidationError('Scholarship ID is required')
-    }
+    if (!scholarshipId) throw new ValidationError('Scholarship ID is required')
 
-    const scholarship = await Scholarship.findById(scholarshipId)
-    if (!scholarship) {
-      throw new NotFoundError('Scholarship')
-    }
+    const scholarship = await scholarshipRepository.findByAnyId(scholarshipId)
 
-    if (scholarship.status !== 'published') {
+    if (scholarship.status !== SCHOLARSHIP_STATUS.PUBLISHED) {
       throw new ValidationError('Scholarship is not available for applications')
     }
-
     if (new Date(scholarship.applicationDeadline) < new Date()) {
       throw new ValidationError('Application deadline has passed')
     }
 
-    const existing = await Application.findOne({
-      student: studentId,
-      scholarship: scholarshipId
-    })
-
-    if (existing) {
-      throw new ValidationError('You have already applied for this scholarship')
-    }
+    const existing = await applicationRepository.findExistingApplication(studentId, scholarshipId)
+    if (existing) throw new ValidationError('You have already applied for this scholarship')
 
     const applicationId = this.generateApplicationId()
 
-    const application = new Application({
+    const application = await applicationRepository.create({
       applicationId,
       id: applicationId,
-      student: studentId,
-      scholarship: scholarshipId,
+      studentId,
+      scholarshipId,
       preferences: preferences || {},
       documents: documents || {},
-      status: 'pending',
+      status: APPLICATION_STATUS.PENDING,
       submittedAt: new Date(),
       statusHistory: [{
-        status: 'pending',
+        status: APPLICATION_STATUS.PENDING,
         timestamp: new Date(),
-        note: 'Application submitted'
-      }]
+        note: 'Application submitted',
+      }],
     })
 
-    await application.save()
-    
-    const populated = await Application.findById(application._id)
-      .populate('scholarship')
-      .populate('student')
+    const populated = await applicationRepository.findByAnyId(application.id)
 
-    try {
-      await emailService.sendNewApplicationNotificationToAdmin({
+    await tryEmail(
+      () => emailService.sendNewApplicationNotificationToAdmin({
         applicationId: populated.applicationId || populated.id,
-        id: populated._id,
         student: populated.student,
         scholarship: populated.scholarship,
         submittedAt: populated.submittedAt,
-      })
-    } catch (error) {
-      console.error('Failed to send admin notification (non-blocking):', error)
-    }
+      }),
+      'Failed to send admin notification (non-blocking)'
+    )
 
     return populated
   }
 
   async updateApplication(studentId, applicationId, updateData) {
-    const application = await Application.findOne({
-      _id: applicationId,
-      student: studentId
-    })
+    const application = await applicationRepository.findByStudentAndIdOrNull(studentId, applicationId)
 
-    if (!application) {
-      throw new NotFoundError('Application')
-    }
-
+    if (!application) throw new NotFoundError('Application')
     if (application.status !== 'pending') {
       throw new ValidationError('Cannot update application after review has started')
     }
 
     const { preferences, documents } = updateData
+    const updatePayload = {}
 
-    if (preferences) {
-      application.preferences = { ...application.preferences, ...preferences }
-    }
+    if (preferences) updatePayload.preferences = { ...application.preferences, ...preferences }
+    if (documents)   updatePayload.documents   = { ...application.documents, ...documents }
 
-    if (documents) {
-      application.documents = { ...application.documents, ...documents }
-    }
-
-    await application.save()
-    
-    const populated = await Application.findById(application._id)
-      .populate('scholarship')
-      .populate('student')
-
-    return populated
+    await applicationRepository.update(applicationId, updatePayload)
+    return applicationRepository.findByAnyId(applicationId)
   }
 
   async create(applicationData) {
     const id = this.generateApplicationId()
-
-    const application = new Application({
+    const application = await applicationRepository.create({
       ...applicationData,
       id,
       applicationId: id,
       status: 'pending',
       submittedAt: new Date(),
-      statusHistory: [{
-        status: 'pending',
-        timestamp: new Date(),
-        note: 'Application submitted'
-      }]
+      statusHistory: [{ status: 'pending', timestamp: new Date(), note: 'Application submitted' }],
     })
-
-    await application.save()
-    
     return { id: application.id }
   }
 
   async updateStatus(applicationId, statusData, adminEmail) {
     let { status, note, metadata } = statusData
-    
+
     if (status) {
       status = status.toLowerCase()
-      if (status === 'interview' || status === 'interview_scheduled' || status === 'interviewscheduled') {
-        status = 'interview'
-      }
-      if (status === 'interview_passed' || status === 'interviewpassed') {
-        status = 'interview_passed'
-      }
+      if (['interview_scheduled', 'interviewscheduled'].includes(status)) status = 'interview'
+      if (status === 'interviewpassed') status = 'interview_passed'
       if (status === 'interview_failed' || status === 'interviewfailed') {
         status = 'rejected'
         if (metadata) {
-          metadata.rejectionReason = metadata.rejectionReason || 'interview_failed'
+          metadata.rejectionReason  = metadata.rejectionReason || 'interview_failed'
           metadata.rejectionFeedback = metadata.interviewFailureReason || metadata.rejectionFeedback || 'Interview did not meet requirements'
         }
       }
     }
-    
+
     const application = await applicationRepository.findByAnyId(applicationId)
 
-    const historyEntry = {
+    const historyEntry = { status, timestamp: new Date(), note: note || '', adminEmail, metadata: metadata || {} }
+    const applicationUpdateData = {
       status,
-      timestamp: new Date(),
-      note: note || '',
-      adminEmail,
-      metadata: metadata || {}
+      statusHistory: [...application.statusHistory, historyEntry],
     }
 
-    application.status = status
-    application.statusHistory.push(historyEntry)
-
-    if (status === 'interview' && metadata) {
-      application.interviewDetails = {
+    if (status === APPLICATION_STATUS.INTERVIEW && metadata) {
+      applicationUpdateData.interviewDetails = {
         date: metadata.interviewDate || null,
         time: metadata.interviewTime || null,
         videoCallPlatform: metadata.videoCallPlatform || null,
         videoCallLink: metadata.videoCallLink || null,
         notes: metadata.interviewNotes || null,
-        scheduledAt: new Date()
+        scheduledAt: new Date(),
       }
     }
-
-    if (status === 'rejected' && metadata?.rejectionReason) {
-      application.rejectionDetails = {
+    if (status === APPLICATION_STATUS.REJECTED && metadata?.rejectionReason) {
+      applicationUpdateData.rejectionDetails = {
         reason: metadata.rejectionReason,
         feedback: metadata.rejectionFeedback || null,
-        rejectedAt: new Date()
+        rejectedAt: new Date(),
       }
     }
-
-    if (status === 'revoked' && metadata) {
-      application.revocationDetails = {
+    if (status === APPLICATION_STATUS.REVOKED && metadata) {
+      applicationUpdateData.revocationDetails = {
         reason: metadata.revocationReason || null,
         details: metadata.revocationDetails || null,
-        revokedAt: new Date()
+        revokedAt: new Date(),
       }
     }
+    if (status === APPLICATION_STATUS.ACCEPTED)        applicationUpdateData.acceptedAt = new Date()
+    if (status === APPLICATION_STATUS.INTERVIEW_PASSED) applicationUpdateData.interviewPassedAt = new Date()
 
-    if (status === 'accepted') {
-      application.acceptedAt = new Date()
-    }
-
-    if (status === 'interview_passed') {
-      application.interviewPassedAt = new Date()
-    }
-
-    await application.save()
-    
-    const populated = await Application.findById(application._id)
-      .populate('student')
-      .populate('scholarship')
+    await applicationRepository.update(applicationId, applicationUpdateData)
+    const populated = await applicationRepository.findByAnyId(applicationId)
 
     if (populated.student) {
-      try {
+      const { email, firstName = 'Student' } = populated.student
+      const appId = populated.applicationId
+      const scholarshipTitle = populated.scholarship?.title || 'Scholarship'
+
+      await tryEmail(async () => {
         if (status === 'interview') {
-          await emailService.sendInterviewNotification(
-            populated.student.email,
-            populated.student.firstName || 'Student',
-            {
-              applicationId: populated.applicationId,
-              scholarshipTitle: populated.scholarship?.title || 'Scholarship',
-              interviewDate: metadata?.interviewDate,
-              interviewTime: metadata?.interviewTime,
-              videoCallPlatform: metadata?.videoCallPlatform,
-              videoCallLink: metadata?.videoCallLink,
-              notes: metadata?.interviewNotes,
-              adminNote: note
-            }
-          )
+          await emailService.sendInterviewNotification(email, firstName, {
+            applicationId: appId, scholarshipTitle,
+            interviewDate: metadata?.interviewDate,
+            interviewTime: metadata?.interviewTime,
+            videoCallPlatform: metadata?.videoCallPlatform,
+            videoCallLink: metadata?.videoCallLink,
+            notes: metadata?.interviewNotes,
+            adminNote: note,
+          })
         } else if (status === 'interview_passed') {
-          await emailService.sendInterviewPassedNotification(
-            populated.student.email,
-            populated.student.firstName || 'Student',
-            {
-              applicationId: populated.applicationId,
-              scholarshipTitle: populated.scholarship?.title || 'Scholarship',
-              adminNote: note
-            }
-          )
+          await emailService.sendInterviewPassedNotification(email, firstName, {
+            applicationId: appId, scholarshipTitle, adminNote: note,
+          })
         } else if (status === 'rejected' && metadata?.rejectionReason === 'interview_failed') {
-          await emailService.sendInterviewFailedNotification(
-            populated.student.email,
-            populated.student.firstName || 'Student',
-            {
-              applicationId: populated.applicationId,
-              scholarshipTitle: populated.scholarship?.title || 'Scholarship',
-              failureReason: metadata?.interviewFailureReason || metadata?.rejectionFeedback || 'Interview did not meet requirements',
-              adminNote: note
-            }
-          )
+          await emailService.sendInterviewFailedNotification(email, firstName, {
+            applicationId: appId, scholarshipTitle,
+            failureReason: metadata?.interviewFailureReason || metadata?.rejectionFeedback || 'Interview did not meet requirements',
+            adminNote: note,
+          })
         } else if (status === 'revoked') {
-          await emailService.sendRevokedNotification(
-            populated.student.email,
-            populated.student.firstName || 'Student',
-            {
-              applicationId: populated.applicationId,
-              scholarshipTitle: populated.scholarship?.title || 'Scholarship',
-              revocationReason: metadata?.revocationReason || 'Missing documents or information',
-              revocationDetails: metadata?.revocationDetails || '',
-              adminNote: note
-            }
-          )
+          await emailService.sendRevokedNotification(email, firstName, {
+            applicationId: appId, scholarshipTitle,
+            revocationReason: metadata?.revocationReason || 'Missing documents or information',
+            revocationDetails: metadata?.revocationDetails || '',
+            adminNote: note,
+          })
         }
-      } catch (emailError) {
-        console.error('Failed to send status notification email:', emailError)
-      }
+      }, 'Failed to send status notification email')
     }
 
     return populated
@@ -326,19 +238,7 @@ class ApplicationService {
   }
 
   async search(term) {
-    const searchTerm = term.toLowerCase()
-    return await Application.find({
-      $or: [
-        { 'applicant.firstName': { $regex: searchTerm, $options: 'i' } },
-        { 'applicant.lastName': { $regex: searchTerm, $options: 'i' } },
-        { 'applicant.email': { $regex: searchTerm, $options: 'i' } },
-        { id: { $regex: searchTerm, $options: 'i' } },
-        { applicationId: { $regex: searchTerm, $options: 'i' } }
-      ]
-    })
-      .populate('student', 'firstName lastName email')
-      .populate('scholarship', 'title')
-      .sort({ submittedAt: -1 })
+    return applicationRepository.search(term)
   }
 
   async uploadAdminDocument(applicationId, documentType, filename, adminEmail) {
@@ -347,54 +247,35 @@ class ApplicationService {
     }
 
     const application = await applicationRepository.findByAnyId(applicationId)
-    const filePath = `/uploads/applications/${application.applicationId || applicationId}/admin-docs/${filename}`
-    
-    if (application.status !== 'accepted') {
+
+    if (application.status !== APPLICATION_STATUS.ACCEPTED) {
       throw new ValidationError('Documents can only be uploaded for accepted applications')
     }
-    
-    if (documentType === 'admission') {
-      application.admissionDocument = {
-        path: filePath,
-        uploadedAt: new Date(),
-        uploadedBy: adminEmail
-      }
-    } else if (documentType === 'jw202') {
-      application.jw202Document = {
-        path: filePath,
-        uploadedAt: new Date(),
-        uploadedBy: adminEmail
-      }
-    }
-    
-    await application.save()
-    
-    try {
-      const populated = await Application.findById(application._id)
-        .populate('student')
-        .populate('scholarship')
-      
-      if (populated.student) {
-        await emailService.sendDocumentUploadedNotification(
-          populated.student.email,
-          populated.student.firstName || 'Student',
-          {
-            applicationId: populated.applicationId,
-            scholarshipTitle: populated.scholarship?.title || 'Scholarship',
-            documentType: documentType === 'admission' ? 'Admission Letter' : 'JW202 Form',
-            documentPath: filePath
-          }
-        )
-      }
-    } catch (emailError) {
-      console.error('Failed to send document upload notification email:', emailError)
-    }
-    
-    const updated = await Application.findById(application._id)
-      .populate('student')
-      .populate('scholarship')
-    
-    return updated
+
+    const filePath = `/uploads/applications/${application.applicationId || applicationId}/admin-docs/${filename}`
+
+    const docField = documentType === 'admission' ? 'admissionDocument' : 'jw202Document'
+    await applicationRepository.update(applicationId, {
+      [docField]: { path: filePath, uploadedAt: new Date(), uploadedBy: adminEmail },
+    })
+
+    const populated = await applicationRepository.findByAnyId(applicationId)
+
+    await tryEmail(
+      () => populated.student && emailService.sendDocumentUploadedNotification(
+        populated.student.email,
+        populated.student.firstName || 'Student',
+        {
+          applicationId: populated.applicationId,
+          scholarshipTitle: populated.scholarship?.title || 'Scholarship',
+          documentType: documentType === 'admission' ? 'Admission Letter' : 'JW202 Form',
+          documentPath: filePath,
+        }
+      ),
+      'Failed to send document upload notification email'
+    )
+
+    return populated
   }
 }
 

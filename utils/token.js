@@ -1,39 +1,48 @@
-/**
- * Token Utilities
- * Helper functions for JWT token extraction and handling
- */
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 7 days, mirrors JWT_EXPIRES_IN
 
-/**
- * Extract Bearer token from request headers
- * @param {object} req - Express request object
- * @returns {string|null} Token or null if not found
- */
 export const extractBearerToken = (req) => {
   const authHeader = req.headers.authorization
   if (!authHeader) return null
-  
+
   const parts = authHeader.split(' ')
   if (parts.length !== 2 || parts[0] !== 'Bearer') return null
-  
+
   return parts[1]
 }
 
-/**
- * Extract token from Authorization header string
- * @param {string} authHeader - Authorization header value
- * @returns {string|null} Token or null if not found
- */
 export const extractTokenFromHeader = (authHeader) => {
   if (!authHeader) return null
   return authHeader.replace('Bearer ', '')
 }
 
-/**
- * Create Bearer token string
- * @param {string} token - JWT token
- * @returns {string} Bearer token string
- */
 export const createBearerToken = (token) => {
   return `Bearer ${token}`
 }
 
+/**
+ * Set an httpOnly JWT cookie.
+ * @param {import('express').Response} res
+ * @param {string} token  - signed JWT
+ * @param {string} name   - cookie name, e.g. 'adminToken' | 'studentToken'
+ */
+export const setTokenCookie = (res, token, name) => {
+  res.cookie(name, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: COOKIE_MAX_AGE_MS,
+  })
+}
+
+/**
+ * Clear an httpOnly JWT cookie (logout).
+ * @param {import('express').Response} res
+ * @param {string} name - cookie name to clear
+ */
+export const clearTokenCookie = (res, name) => {
+  res.clearCookie(name, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  })
+}

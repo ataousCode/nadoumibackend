@@ -1,16 +1,24 @@
-import Scholarship from '../models/Scholarship.js'
-import mongoose from 'mongoose'
+import prisma from '../config/prisma.js'
 import { NotFoundError } from '../utils/errors.js'
+import { isUuid, handlePrismaError } from '../utils/prisma.js'
 
 class ScholarshipRepository {
   async findByAnyId(id) {
-    const query = []
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query.push({ _id: id })
-    }
-    query.push({ scholarshipId: id })
+    const uuidId = isUuid(id) ? id : undefined
     
-    const scholarship = await Scholarship.findOne({ $or: query })
+    const scholarship = await prisma.scholarship.findFirst({
+      where: {
+        OR: [
+          uuidId ? { id } : undefined,
+          { scholarshipId: id }
+        ].filter(Boolean)
+      },
+      include: {
+        university: true,
+        createdBy: true
+      }
+    })
+
     if (!scholarship) {
       throw new NotFoundError('Scholarship')
     }
@@ -18,48 +26,90 @@ class ScholarshipRepository {
   }
 
   async findByAnyIdOrNull(id) {
-    const query = []
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query.push({ _id: id })
-    }
-    query.push({ scholarshipId: id })
-    return await Scholarship.findOne({ $or: query })
+    const uuidId = isUuid(id) ? id : undefined
+    
+    return await prisma.scholarship.findFirst({
+      where: {
+        OR: [
+          uuidId ? { id } : undefined,
+          { scholarshipId: id }
+        ].filter(Boolean)
+      }
+    })
   }
 
-  async findAll(query = {}) {
-    return await Scholarship.find(query)
-      .sort({ createdAt: -1 })
-      .populate('createdBy', 'email name')
+  async findAll(params = {}) {
+    const { where = {}, skip, take } = params
+    return await prisma.scholarship.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        university: true,
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        }
+      }
+    })
+  }
+
+  async findFeatured(limit = 6) {
+    return await prisma.scholarship.findMany({
+      where: {
+        status: 'published',
+        applicationDeadline: { gte: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        university: true,
+        createdBy: { select: { id: true, email: true, name: true } },
+      },
+    })
   }
 
   async count(query = {}) {
-    return await Scholarship.countDocuments(query)
+    return await prisma.scholarship.count({
+      where: query
+    })
   }
 
   async create(scholarshipData) {
-    const scholarship = new Scholarship(scholarshipData)
-    await scholarship.save()
-    return scholarship
+    try {
+      return await prisma.scholarship.create({
+        data: scholarshipData
+      })
+    } catch (error) {
+      handlePrismaError(error, 'Scholarship')
+    }
   }
 
   async update(id, updateData) {
     const scholarship = await this.findByAnyId(id)
-    Object.assign(scholarship, updateData)
-    await scholarship.save()
-    return scholarship
+    return await prisma.scholarship.update({
+      where: { id: scholarship.id },
+      data: updateData
+    })
   }
 
   async delete(id) {
     const scholarship = await this.findByAnyId(id)
-    await Scholarship.findByIdAndDelete(scholarship._id)
-    return scholarship
+    return await prisma.scholarship.delete({
+      where: { id: scholarship.id }
+    })
   }
 
   async updateStatus(id, status) {
     const scholarship = await this.findByAnyId(id)
-    scholarship.status = status
-    await scholarship.save()
-    return scholarship
+    return await prisma.scholarship.update({
+      where: { id: scholarship.id },
+      data: { status }
+    })
   }
 }
 

@@ -1,9 +1,13 @@
-import Admin from '../models/Admin.js'
-import { NotFoundError, ConflictError } from '../utils/errors.js'
+import prisma from '../config/prisma.js'
+import bcrypt from 'bcryptjs'
+import { NotFoundError } from '../utils/errors.js'
+import { handlePrismaError } from '../utils/prisma.js'
 
 class AdminRepository {
   async findByEmail(email) {
-    const admin = await Admin.findOne({ email: email.toLowerCase() })
+    const admin = await prisma.admin.findUnique({
+      where: { email: email.toLowerCase() }
+    })
     if (!admin) {
       throw new NotFoundError('Admin')
     }
@@ -11,11 +15,15 @@ class AdminRepository {
   }
 
   async findByEmailOrNull(email) {
-    return await Admin.findOne({ email: email.toLowerCase() })
+    return await prisma.admin.findUnique({
+      where: { email: email.toLowerCase() }
+    })
   }
 
   async findById(id) {
-    const admin = await Admin.findById(id)
+    const admin = await prisma.admin.findUnique({
+      where: { id }
+    })
     if (!admin) {
       throw new NotFoundError('Admin')
     }
@@ -23,7 +31,16 @@ class AdminRepository {
   }
 
   async findByIdWithoutPassword(id) {
-    const admin = await Admin.findById(id).select('-password')
+    const admin = await prisma.admin.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        profilePicture: true,
+        createdAt: true
+      }
+    })
     if (!admin) {
       throw new NotFoundError('Admin')
     }
@@ -35,34 +52,42 @@ class AdminRepository {
     
     if (updateData.email && updateData.email !== admin.email) {
       const existing = await this.findByEmailOrNull(updateData.email)
-      if (existing && existing._id.toString() !== id.toString()) {
+      if (existing && existing.id !== id) {
         throw new ConflictError('Email already in use')
       }
       updateData.email = updateData.email.toLowerCase()
     }
+
+    if (updateData.password) {
+      const salt = await bcrypt.genSalt(10)
+      updateData.password = await bcrypt.hash(updateData.password, salt)
+    }
     
-    Object.keys(updateData).forEach((key) => {
-      if (updateData[key] !== undefined) {
-        admin[key] = updateData[key]
-      }
-    })
-    
-    await admin.save()
-    return admin
+    try {
+      return await prisma.admin.update({
+        where: { id },
+        data: updateData
+      })
+    } catch (error) {
+      handlePrismaError(error, 'Admin')
+    }
   }
 
   async updatePassword(id, newPassword) {
-    const admin = await this.findById(id)
-    admin.password = newPassword
-    await admin.save()
-    return admin
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(newPassword, salt)
+    
+    return await prisma.admin.update({
+      where: { id },
+      data: { password: hashedPassword }
+    })
   }
 
   async updateProfilePicture(id, profilePicturePath) {
-    const admin = await this.findById(id)
-    admin.profilePicture = profilePicturePath
-    await admin.save()
-    return admin
+    return await prisma.admin.update({
+      where: { id },
+      data: { profilePicture: profilePicturePath }
+    })
   }
 }
 

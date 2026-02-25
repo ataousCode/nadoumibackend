@@ -3,16 +3,29 @@ import { asyncHandler } from '../middleware/errorHandler.js'
 import { ValidationError } from '../utils/errors.js'
 import { sendSuccess, sendCreated } from '../utils/response.js'
 import { replaceUploadedFile } from '../utils/fileHelper.js'
+import { setTokenCookie, clearTokenCookie } from '../utils/token.js'
 
 class StudentController {
   register = asyncHandler(async (req, res) => {
     const result = await studentService.register(req.body)
+
+    // Auto-verified path: token present → also set httpOnly cookie
+    if (result.token) {
+      setTokenCookie(res, result.token, 'studentToken')
+    }
+
     sendCreated(res, result)
   })
 
   verifyEmail = asyncHandler(async (req, res) => {
     const { email, otp } = req.body
     const result = await studentService.verifyEmail(email, otp)
+
+    // Set httpOnly cookie on email verification success
+    if (result.token) {
+      setTokenCookie(res, result.token, 'studentToken')
+    }
+
     sendSuccess(res, result)
   })
 
@@ -25,7 +38,18 @@ class StudentController {
   login = asyncHandler(async (req, res) => {
     const { email, password } = req.body
     const result = await studentService.login(email, password)
+
+    // Set httpOnly cookie — inaccessible to JavaScript (XSS protection)
+    if (result.token) {
+      setTokenCookie(res, result.token, 'studentToken')
+    }
+
     sendSuccess(res, result)
+  })
+
+  logout = asyncHandler(async (_req, res) => {
+    clearTokenCookie(res, 'studentToken')
+    sendSuccess(res, { message: 'Logged out successfully' })
   })
 
   getProfile = asyncHandler(async (req, res) => {
@@ -61,8 +85,8 @@ class StudentController {
   })
 
   getAll = asyncHandler(async (req, res) => {
-    const students = await studentService.getAll()
-    sendSuccess(res, students)
+    const result = await studentService.getAll(req.query)
+    sendSuccess(res, result)
   })
 
   updateProfilePicture = asyncHandler(async (req, res) => {
@@ -75,7 +99,7 @@ class StudentController {
       req.file.filename,
       'profile-pictures/students'
     )
-    
+
     const result = await studentService.updateProfilePicture(
       req.student.id,
       newFilePath,

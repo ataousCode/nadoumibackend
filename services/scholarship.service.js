@@ -1,130 +1,64 @@
 import scholarshipRepository from '../repositories/scholarship.repository.js'
-import Scholarship from '../models/Scholarship.js'
-import University from '../models/University.js'
+import universityRepository from '../repositories/university.repository.js'
 import { ValidationError } from '../utils/errors.js'
-import { PAGINATION_DEFAULT_PAGE, PAGINATION_DEFAULT_LIMIT } from '../config/constants.js'
+import { PAGINATION_DEFAULT_PAGE, PAGINATION_DEFAULT_LIMIT, SCHOLARSHIP_STATUS } from '../config/constants.js'
+import { parsePagination, buildPaginatedResponse } from '../utils/pagination.js'
 
 class ScholarshipService {
   async getAll(filters = {}) {
-    const { category, country, search, page = PAGINATION_DEFAULT_PAGE, limit = PAGINATION_DEFAULT_LIMIT, status, programCategory, scholarshipCategory, isAdmin } = filters
-    
+    const {
+      category, country, search,
+      page = PAGINATION_DEFAULT_PAGE, limit = PAGINATION_DEFAULT_LIMIT,
+      status, programCategory, scholarshipCategory, isAdmin
+    } = filters
+
     const query = {}
-    const queryStatus = status || (isAdmin ? undefined : 'published')
-    
-    if (queryStatus) {
-      query.status = queryStatus
-    }
-    
-    if (category) query.category = category
-    if (programCategory) query.programCategory = programCategory
-    if (scholarshipCategory) query.scholarshipCategory = scholarshipCategory
-    if (country) query['university.country'] = country
+    const queryStatus = status || (isAdmin ? undefined : SCHOLARSHIP_STATUS.PUBLISHED)
+
+    if (queryStatus)          query.status = queryStatus
+    if (category)             query.category = category
+    if (programCategory)      query.programCategory = programCategory
+    if (scholarshipCategory)  query.scholarshipCategory = scholarshipCategory
+    if (country)              query.university = { country }
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { titleInChinese: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { programName: { $regex: search, $options: 'i' } },
-        { 'university.name': { $regex: search, $options: 'i' } }
+      query.OR = [
+        { title:           { contains: search, mode: 'insensitive' } },
+        { titleInChinese:  { contains: search, mode: 'insensitive' } },
+        { description:     { contains: search, mode: 'insensitive' } },
+        { programName:     { contains: search, mode: 'insensitive' } },
+        { university: { name: { contains: search, mode: 'insensitive' } } },
       ]
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
-    
+    const { skip, take } = parsePagination(page, limit)
+
     const [scholarships, total] = await Promise.all([
-      scholarshipRepository.findAll(query)
-        .skip(skip)
-        .limit(parseInt(limit)),
-      scholarshipRepository.count(query)
+      scholarshipRepository.findAll({ where: query, skip, take }),
+      scholarshipRepository.count(query),
     ])
 
-    return {
-      scholarships,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
-    }
+    return buildPaginatedResponse('scholarships', scholarships, total, page, limit)
   }
 
   async getFeatured() {
-    return await Scholarship.find({ 
-      status: 'published',
-      applicationDeadline: { $gte: new Date() }
-    })
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .populate('createdBy', 'email name')
+    return scholarshipRepository.findFeatured()
   }
 
   async getById(id) {
-    const scholarship = await scholarshipRepository.findByAnyId(id)
-    await scholarship.populate('createdBy', 'email name')
-    await scholarship.populate('universityRef')
-    return scholarship
+    return scholarshipRepository.findByAnyId(id)
   }
 
   async create(scholarshipData, adminId) {
     const scholarship = await scholarshipRepository.create({
       ...scholarshipData,
-      createdBy: adminId
+      createdById: adminId,
     })
-
-    if (scholarship.universityRef) {
-      await University.findByIdAndUpdate(
-        scholarship.universityRef,
-        { $addToSet: { scholarships: scholarship._id } },
-        { new: true }
-      )
-    }
-
-    const populated = await Scholarship.findById(scholarship._id)
-      .populate('createdBy', 'email name')
-      .populate('universityRef')
-    
-    return populated
+    return scholarshipRepository.findByAnyId(scholarship.id)
   }
 
   async update(id, updateData) {
-    const scholarship = await scholarshipRepository.findByAnyId(id)
-    
-    const oldUniversityRef = scholarship.universityRef?.toString()
-    const newUniversityRef = updateData.universityRef?.toString()
-
-    if (!scholarship.scholarshipId && updateData.scholarshipId) {
-      scholarship.scholarshipId = updateData.scholarshipId
-    }
-    
-    Object.assign(scholarship, updateData)
-    await scholarship.save()
-
-    if (oldUniversityRef !== newUniversityRef) {
-      if (oldUniversityRef) {
-        await University.findByIdAndUpdate(
-          oldUniversityRef,
-          { $pull: { scholarships: scholarship._id } }
-        )
-      }
-      if (newUniversityRef) {
-        await University.findByIdAndUpdate(
-          newUniversityRef,
-          { $addToSet: { scholarships: scholarship._id } }
-        )
-      }
-    } else if (newUniversityRef) {
-      await University.findByIdAndUpdate(
-        newUniversityRef,
-        { $addToSet: { scholarships: scholarship._id } }
-      )
-    }
-    
-    const populated = await Scholarship.findById(scholarship._id)
-      .populate('createdBy', 'email name')
-      .populate('universityRef')
-    
-    return populated
+    const scholarship = await scholarshipRepository.update(id, updateData)
+    return scholarshipRepository.findByAnyId(scholarship.id)
   }
 
   async delete(id) {
@@ -133,13 +67,10 @@ class ScholarshipService {
   }
 
   async updateStatus(id, status) {
-    const validStatuses = ['draft', 'published', 'closed', 'active', 'inactive']
-    if (!validStatuses.includes(status)) {
+    if (!Object.values(SCHOLARSHIP_STATUS).includes(status)) {
       throw new ValidationError('Invalid status')
     }
-
-    const scholarship = await scholarshipRepository.updateStatus(id, status)
-    return scholarship
+    return scholarshipRepository.updateStatus(id, status)
   }
 }
 
