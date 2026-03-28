@@ -167,6 +167,40 @@ class EmailService {
     )
   }
 
+  async sendAdmissionNotification(email, firstName, data) {
+    return this._queueNotification(
+      'email',
+      email,
+      `Congratulations! Admission Result for Application ${data.applicationId} - Nadoumi`,
+      'admission-result',
+      {
+        firstName,
+        email,
+        applicationId: data.applicationId,
+        scholarshipTitle: data.scholarshipTitle,
+        adminNote: data.adminNote,
+        frontendUrl: FRONTEND_URL,
+      }
+    )
+  }
+
+  async sendApplicationReviewNotification(email, firstName, data) {
+    return this._queueNotification(
+      'email',
+      email,
+      `Application Update - Application ${data.applicationId} - Nadoumi`,
+      'application-under-review',
+      {
+        firstName,
+        email,
+        applicationId: data.applicationId,
+        scholarshipTitle: data.scholarshipTitle,
+        adminNote: data.adminNote,
+        frontendUrl: FRONTEND_URL,
+      }
+    )
+  }
+
   async sendNewApplicationNotificationToAdmin(applicationData) {
     const adminEmail = process.env.ADMIN_EMAIL
     const adminUrl = `${FRONTEND_URL}/admin/applications/${applicationData.applicationId || applicationData.id || applicationData._id}`

@@ -11,6 +11,8 @@ export const loginAdminSchema = Joi.object({
 export const updateAdminProfileSchema = Joi.object({
   name: name("Name", 1, 100).optional(),
   email: email().optional(),
+  phone: Joi.string().allow('', null).optional(),
+  country: Joi.string().allow('', null).optional(),
 });
 
 export const changeAdminPasswordSchema = Joi.object({

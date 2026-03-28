@@ -8,32 +8,49 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "build": "prisma generate && prisma migrate deploy",
     "create-admin": "node scripts/createAdmin.js",
-    "seed-scholarships": "node scripts/seedScholarships.js"
+    "seed-scholarships": "node scripts/seedScholarships.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@alicloud/pop-core": "^1.8.0",
     "@prisma/client": "^6.0.0",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "ali-oss": "^6.23.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.69.3",
+    "cloudinary": "^2.9.0",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
     "ioredis": "^5.9.3",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.0-rc.4",
     "nodemailer": "^6.9.7",
-    "rate-limit-redis": "^4.3.1"
+    "rate-limit-redis": "^4.3.1",
+    "sharp": "^0.34.5",
+    "socket.io": "^4.8.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "jest": "^30.2.0",
+    "jest-mock-extended": "^4.0.0",
     "nodemon": "^3.0.2",
     "prisma": "^6.0.0",
-    "supertest": "^7.1.4",
-    "tslib": "^2.8.1"
+    "supertest": "^7.2.2"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -1,4 +1,4 @@
-const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 // 7 days, mirrors JWT_EXPIRES_IN
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 export const extractBearerToken = (req) => {
   const authHeader = req.headers.authorization
@@ -19,12 +19,6 @@ export const createBearerToken = (token) => {
   return `Bearer ${token}`
 }
 
-/**
- * Set an httpOnly JWT cookie.
- * @param {import('express').Response} res
- * @param {string} token  - signed JWT
- * @param {string} name   - cookie name, e.g. 'adminToken' | 'studentToken'
- */
 export const setTokenCookie = (res, token, name) => {
   res.cookie(name, token, {
     httpOnly: true,
@@ -34,11 +28,6 @@ export const setTokenCookie = (res, token, name) => {
   })
 }
 
-/**
- * Clear an httpOnly JWT cookie (logout).
- * @param {import('express').Response} res
- * @param {string} name - cookie name to clear
- */
 export const clearTokenCookie = (res, name) => {
   res.clearCookie(name, {
     httpOnly: true,

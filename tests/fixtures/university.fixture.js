@@ -1,0 +1,15 @@
+export const mockUniversity = {
+  id: "550e8400-e29b-41d4-a716-446655440001",
+  universityId: "UNI2024001",
+  name: "Nadoumi Global University",
+  nameInChinese: "哪都通全球大学",
+  country: "China",
+  city: "Beijing",
+  description: "A leading global university",
+  status: "active",
+  logo: "https://example.com/logo.png",
+  coverImage: "https://example.com/cover.png",
+  website: "https://example.com",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};

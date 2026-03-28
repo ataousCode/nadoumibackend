@@ -8,6 +8,7 @@ import logger from '../utils/logger.js'
  * Falls back gracefully to in-memory if Redis is not ready.
  */
 function buildStore(prefix) {
+  if (process.env.NODE_ENV === 'test') return undefined;
   try {
     return new RedisStore({
       prefix,

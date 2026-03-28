@@ -5,15 +5,32 @@ export const errorHandler = (err, _req, res, _next) => {
   let error = { ...err };
   error.message = err.message;
 
-  logger.error(err.message || 'Unhandled error', { code: err.code, stack: err.stack });
+  logger.error(err.message || "Unhandled error", {
+    code: err.code,
+    stack: err.stack,
+  });
+  
 
   if (
     err instanceof ValidationError ||
+    err.name === "ZodError" ||
     (err.errors && err.statusCode === 400)
   ) {
-    const message = err.message || "Validation failed";
+    let message = err.message || "Validation failed";
+    let messageErrors = err.errors || {};
+
+    if (err.name === "ZodError") {
+      message = "Validation failed";
+      const issues = err.issues || err.errors || [];
+      messageErrors = issues.reduce((acc, curr) => {
+        const path = curr.path.join(".");
+        acc[path] = curr.message;
+        return acc;
+      }, {});
+    }
+
     error = new AppError(message, 400);
-    error.errors = err.errors || {};
+    error.errors = messageErrors;
     return res.status(400).json({
       success: false,
       error: {

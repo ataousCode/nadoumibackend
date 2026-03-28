@@ -6,28 +6,30 @@ export const registerStudentSchema = Joi.object({
   lastName: name("Last name").required(),
   email: email().required(),
   password: password().required(),
-  country: Joi.string().trim().min(2).max(100).required().messages({
-    "string.empty": "Country is required",
-    "string.min": "Country must be at least 2 characters",
-    "string.max": "Country must not exceed 100 characters",
-  }),
+  country: Joi.string().trim().min(2).max(100).required(),
+  city: Joi.string().trim().min(2).max(100).required(),
+  gender: Joi.string().valid('Male', 'Female', 'Other').required(),
   passportNumber: Joi.string()
     .trim()
     .min(5)
     .max(20)
     .required()
-    .pattern(/^[A-Z0-9]+$/)
-    .messages({
-      "string.empty": "Passport number is required",
-      "string.min": "Passport number must be at least 5 characters",
-      "string.max": "Passport number must not exceed 20 characters",
-      "string.pattern.base":
-        "Passport number must contain only uppercase letters and numbers",
-    }),
-  phone: phone().optional(),
-  dateOfBirth: Joi.date().max("now").optional().messages({
-    "date.max": "Date of birth cannot be in the future",
-  }),
+    .pattern(/^[A-Z0-9]+$/),
+  phone: phone().required(),
+  dateOfBirth: Joi.date().max("now").required(),
+  
+  // Education Info
+  currentLevel: Joi.string().required(),
+  university: Joi.string().required(),
+  major: Joi.string().required(),
+  gpa: Joi.string().allow('', null).optional(),
+  gradYear: Joi.string().required(),
+
+  // Scholarship Goals
+  studyLevel: Joi.string().required(),
+  desiredField: Joi.string().required(),
+  preferredCities: Joi.array().items(Joi.string()).min(1).required(),
+  preferredLanguages: Joi.array().items(Joi.string()).optional(),
 });
 
 export const loginStudentSchema = Joi.object({

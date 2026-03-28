@@ -1,5 +1,6 @@
 import fs from 'fs'
-import { getUploadPath } from './paths.js'
+import path from 'path';
+import { getUploadPath, getUploadsDir } from './paths.js'
 import logger from './logger.js'
 
 export async function deleteUploadedFile(filePath) {
@@ -26,11 +27,25 @@ export async function deleteUploadedFile(filePath) {
 }
 
 export async function replaceUploadedFile(oldPath, newFilename, uploadDir) {
-  // Delete old file if exists
+  // 1. Ensure directory exists
+  const targetDir = getUploadPath(uploadDir);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  // 2. Delete old file if exists
   if (oldPath) {
     await deleteUploadedFile(oldPath)
   }
-  // Return new file path
+
+  // 3. Move file from temp to final destination
+  const tempPath = getUploadPath(path.join('temp', newFilename));
+  const finalPath = path.join(targetDir, newFilename);
+
+  if (fs.existsSync(tempPath)) {
+    fs.renameSync(tempPath, finalPath);
+  }
+
   return `/uploads/${uploadDir}/${newFilename}`
 }
 
@@ -62,4 +77,3 @@ export function getFileSize(filePath) {
     return null
   }
 }
-

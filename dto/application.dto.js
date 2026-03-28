@@ -2,20 +2,13 @@ import Joi from "joi";
 import { uuid } from "./validators.js";
 import { APPLICATION_STATUS, DOCUMENT_TYPES } from "../config/constants.js";
 
-/**
- * Schema for the authenticated student application (via /student/me).
- * Requires a valid scholarshipId UUID.
- */
+
 export const createApplicationSchema = Joi.object({
   scholarshipId: uuid("Scholarship ID").required(),
   preferences: Joi.object().optional(),
   documents: Joi.object().optional(),
 });
-
-/**
- * Schema for the public inquiry form (StudentAdmission page).
- * No auth required — validates the applicant info sent from the public form.
- */
+ 
 export const publicCreateApplicationSchema = Joi.object({
   id: Joi.string().optional(),
   submittedAt: Joi.alternatives().try(Joi.date(), Joi.number()).optional(),

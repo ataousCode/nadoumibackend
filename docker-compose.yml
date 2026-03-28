@@ -25,6 +25,21 @@ services:
     volumes:
       - redis_data:/data
 
+  backend:
+    build: .
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-nadoumi}?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3001
+    depends_on:
+      - db
+      - redis
+
 volumes:
   postgres_data:
   redis_data:

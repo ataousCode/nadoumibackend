@@ -8,40 +8,93 @@ datasource db {
 }
 
 model Admin {
-  id             String   @id @default(uuid())
-  email          String   @unique
+  id             String    @id @default(uuid())
+  email          String    @unique
   password       String
-  name           String   @default("Admin")
+  name           String    @default("Admin")
+  phone          String?
+  country        String?
   profilePicture String?
-  createdAt      DateTime @default(now())
+  role           String    @default("admin")
+  lastLoginAt    DateTime?
+  lastLoginIp    String?
+  createdAt      DateTime  @default(now())
 
-  scholarships Scholarship[]
+  scholarships  Scholarship[]
+  universities  University[]   @relation("UniversityCreatedBy")
+  auditLogs     AuditLog[]
+  conversations Conversation[]
 }
 
 model University {
-  id                    String           @id @default(uuid())
-  universityId          String           @unique
+  id                    String         @id @default(uuid())
+  universityId          String         @unique
   name                  String
   nameInChinese         String?
   logo                  String?
   bannerImage           String?
   city                  String?
   province              String?
-  type                  UniversityType   @default(Public)
+  type                  UniversityType @default(Public)
   foundedYear           Int?
   totalStudents         Int?
   internationalStudents Int?
   facultyCount          Int?
-  numberOfPrograms      Int              @default(0)
-  description           String?
-  advantages            String[]
-  albums                Json? // JSONB: Array of albumSchema
-  rankings              Json? // JSONB: Array of rankingSchema
-  status                UniversityStatus @default(active)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  numberOfPrograms      Int            @default(0)
 
-  scholarships Scholarship[]
+  // Content
+  introduction String? // Short intro shown on listing cards
+  description  String? // Full description for the profile page
+  history      String? // Institutional background & milestones
+  highlights   String[] // Bullet-style key highlights
+
+  // Opportunities & Partnerships
+  opportunities        String[] // Exchange programs, research, etc.
+  partnershipCountries String[] // Countries with active partnerships
+
+  // Search & SEO
+  searchTags     String[] // Faceted tags (e.g. "engineering")
+  searchKeywords String? // Comma-separated raw keywords
+
+  // Scholarship Info
+  scholarshipAvailability ScholarshipAvailability @default(Available)
+  scholarshipNotes        Json? // JSONB: Array of {name, notes}
+
+  advantages          String[]
+  accommodation       Json? // JSONB: Array of {type, price, feeUnit, facilities, notes}
+  campusFacilities    String[]
+  nearbyInfo          String?
+  officialWebsite     String?
+  admissionsEmail     String?
+  officePhone         String?
+  albums              Json? // JSONB: Array of albumSchema
+  rankings            Json? // JSONB: Array of rankingSchema
+  isRecommended       Boolean          @default(false)
+  isPartner           Boolean          @default(false)
+  isTop               Boolean          @default(false)
+  recommendationNotes String?
+  qsRank              Int?
+  requiredDocuments   Json? // JSONB: Array of {name, required, notes}
+  status              UniversityStatus @default(active)
+  majors              Json? // JSONB: Array of {category, list: []}
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  adminId             String?
+  createdBy           Admin?           @relation("UniversityCreatedBy", fields: [adminId], references: [id])
+
+  scholarships Scholarship[] @relation("UniversityToScholarship")
+
+  @@index([name])
+  @@index([city])
+  @@index([province])
+  @@index([status])
+  @@index([scholarshipAvailability])
+}
+
+enum ScholarshipAvailability {
+  Available
+  Limited
+  Not_Available @map("Not Available")
 }
 
 enum UniversityType {
@@ -56,46 +109,145 @@ enum UniversityStatus {
 }
 
 model Scholarship {
-  id                               String              @id @default(uuid())
-  scholarshipId                    String              @unique
-  title                            String
-  titleInChinese                   String?
-  universityJson                   Json? // Nested university data as in Mongoose
-  universityId                     String?
-  university                       University?         @relation(fields: [universityId], references: [id])
-  description                      String
-  programCategory                  ProgramCategory     @default(Bachelor)
-  field                            String?
-  programName                      String?
-  degree                           String?
-  duration                         Int?
-  intake                           String?
-  applicationDeadline              DateTime
-  scholarshipCategory              ScholarshipCategory @default(Partial)
-  scholarshipDuration              Int?
+  id                      String              @id @default(uuid())
+  scholarshipId           String              @unique
+  title                   String
+  titleInChinese          String?
+  universityJson          Json?
+  universities            University[]        @relation("UniversityToScholarship")
+  description             String
+  programCategories       ProgramCategory[]   @default([Bachelor])
+  field                   String?
+  programName             String?
+  degree                  String?
+  duration                Int?
+  intake                  String?
+  applicationDeadline     DateTime
+  scholarshipCategory     ScholarshipCategory @default(Partial)
+  scholarshipDuration     Int?
+  scholarshipDurationText String? // e.g. "4 years"
+  scholarshipPolicy       String?             @db.Text
+
+  // Requirements
+  ageMin                   Int?
+  ageMax                   Int?
+  acceptedCountries        String[] // Array of country names/codes
+  chinaVisitPolicy         String? // e.g. "Accept/Reject/Negotiable"
+  acceptMinors             Boolean? @default(true)
+  currentLocationPolicy    String? // e.g. "Unlimited"
+  
+  // Structured Requirements
+  gpaMin                   Float?
+  ieltsScore               Float?
+  toeflScore               Int?
+  duolingoScore            Int?
+  hskLevel                 Int?
+  
+  scoreRequirements        String?  @db.Text
+  scoreRequirementsEnglish String?  @db.Text
+  scoreRequirementsChinese String?  @db.Text
+
+  // University Fees
   originalTuitionFee               Float?
   tuitionFeeAfterScholarship       Float?
-  accommodationFee                 Json? // JSONB
-  accommodationFeeAfterScholarship Json? // JSONB
-  scholarshipPolicy                String?
-  applicantRequirements            Json? // JSONB
-  applicationDocuments             Json? // JSONB
-  additionalDocuments              Json? // JSONB
-  feeStructure                     Json? // JSONB
-  specialNotes                     String[]
-  requirements                     Json? // JSONB
-  benefits                         Json? // JSONB
-  startDate                        DateTime?
-  availableSlots                   Int                 @default(1)
-  status                           ScholarshipStatus   @default(draft)
-  category                         String?
-  tags                             String[]
-  createdAt                        DateTime            @default(now())
-  updatedAt                        DateTime            @updatedAt
-  adminId                          String?
-  createdBy                        Admin?              @relation(fields: [adminId], references: [id])
+  accommodationFeeQuad             Float? // Specific quad room fee
+  accommodationFeeAfterScholarship Float? // Fee after scholarship
+  registrationFee                  String?
+  universityFeeCurrency            Currency @default(RMB)
 
-  applications Application[]
+  // Nadoumi Agent Fees
+  nadoumiApplicationFee Float? // non-refundable
+  nadoumiServiceFee     Float?
+  nadoumiFeeCurrency    Currency @default(USD)
+
+  stipend               Json? // JSONB: e.g. {Bachelor: 1200, Master: 1500}
+  recommendationNotes   String?              @db.Text
+  accommodationFee      Json? // JSONB (legacy/generic)
+  applicantRequirements Json? // JSONB (legacy/generic)
+  applicationDocuments  Json? // JSONB
+  additionalDocuments   Json? // JSONB
+  feeStructure          Json? // JSONB
+  specialNotes          String?
+  requirements          Json? // JSONB
+  benefits              Json? // JSONB
+  startDate             DateTime?
+  availableSlots        Int                  @default(1)
+  status                ScholarshipStatus    @default(draft)
+  category              String?
+  isRecommended         Boolean              @default(false)
+  isHot                 Boolean              @default(false)
+  isTop                 Boolean              @default(false)
+  insurance             String?
+  teachingLanguage      TeachingLanguage?    @default(English)
+  additionalFees        Json? // JSONB: Array of {name, amount, currency, isPerLevel}
+  coverImage            String? // Cover picture URL
+  tags                  String[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  adminId               String?
+  createdBy             Admin?               @relation(fields: [adminId], references: [id])
+  applications          Application[]
+  programs              ScholarshipProgram[]
+
+  @@index([status])
+  @@index([programCategories])
+  @@index([scholarshipCategory])
+}
+
+model ScholarshipProgram {
+  id               String           @id @default(uuid())
+  scholarshipId    String
+  scholarship      Scholarship      @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  category         ProgramCategory
+  programName      String?
+  majors           String[]
+  field            String? // Keep for backward compat or as primary
+  fields           String[]
+  teachingLanguage TeachingLanguage @default(English)
+  duration         Int?
+  intake           String?
+  startDate        DateTime?
+
+  // Financials
+  stipendEnabled  Boolean  @default(false)
+  stipendAmount   Float?
+  stipendUnit     String?  @default("month")
+  tuitionFee      Float?
+  tuitionFeeAfter Float?
+  applicationFee  Float?
+  serviceFee      Float?
+  currency        Currency @default(RMB)
+
+  // Custom Notes/Fields
+  notes String? @db.Text
+
+  // Accommodations
+  accommodations ProgramAccommodation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scholarshipId])
+}
+
+model ProgramAccommodation {
+  id        String             @id @default(uuid())
+  programId String
+  program   ScholarshipProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  roomType  String // Single, Double, Triple, etc.
+  isFree    Boolean            @default(false)
+  price     Float?
+  currency  Currency           @default(RMB)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId])
+}
+
+enum Currency {
+  RMB
+  USD
 }
 
 enum ProgramCategory {
@@ -124,30 +276,43 @@ enum ScholarshipStatus {
   closed
   active
   inactive
+  limited
+}
+
+enum Gender {
+  Male
+  Female
+  Other
 }
 
 model Student {
-  id                          String    @id @default(uuid())
-  email                       String    @unique
+  id                          String         @id @default(uuid())
+  email                       String         @unique
   password                    String
   firstName                   String
   lastName                    String
   country                     String
-  passportNumber              String    @unique
+  passportNumber              String         @unique
   phone                       String?
   profilePicture              String?
   dateOfBirth                 DateTime?
   nationality                 String?
-  isEmailVerified             Boolean   @default(false)
+  city                        String?
+  gender                      Gender?        @default(Male)
+  isEmailVerified             Boolean        @default(false)
   emailVerificationOTP        String?
   emailVerificationOTPExpires DateTime?
   passwordResetToken          String?
   passwordResetExpires        DateTime?
   profile                     Json? // JSONB: bio, education, languages, achievements
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+  applications                Application[]
+  conversations               Conversation[]
 
-  applications Application[]
+  @@index([email])
+  @@index([nationality])
+  @@index([country])
 }
 
 model Application {
@@ -174,6 +339,10 @@ model Application {
   acceptedAt        DateTime?
   admissionDocument Json? // JSONB (path, uploadedAt, uploadedBy)
   jw202Document     Json? // JSONB (path, uploadedAt, uploadedBy)
+
+  @@index([studentId])
+  @@index([scholarshipId])
+  @@index([status])
 }
 
 enum ApplicationStatus {
@@ -201,6 +370,9 @@ model Notification {
   sentAt    DateTime?
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
+
+  @@index([recipient])
+  @@index([status])
 }
 
 enum NotificationType {
@@ -213,4 +385,72 @@ enum NotificationStatus {
   pending
   sent
   failed
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String // e.g., 'UPDATE_SCHOLARSHIP_STATUS', 'DELETE_UNIVERSITY'
+  resource   String // e.g., 'Scholarship', 'Application'
+  resourceId String // The ID of the affected resource
+  adminId    String
+  admin      Admin    @relation(fields: [adminId], references: [id])
+  metadata   Json? // Stores { old: ..., new: ... } or other context
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([resource, resourceId])
+}
+
+model Conversation {
+  id            String    @id @default(uuid())
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id])
+  adminId       String? // Can be a specific admin or null for general/office
+  admin         Admin?    @relation(fields: [adminId], references: [id])
+  lastMessage   String?
+  lastMessageAt DateTime  @default(now())
+  unreadCount   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  messages      Message[]
+
+  @@index([studentId])
+  @@index([adminId])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id])
+  senderId       String
+  senderRole     String // 'student' or 'admin'
+  content        String
+  type           MessageType   @default(text)
+  fileUrl        String?
+  fileName       String?
+  fileSize       String?
+  status         MessageStatus @default(sent)
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId])
+}
+
+enum MessageType {
+  text
+  file
+  image
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+}
+
+enum TeachingLanguage {
+  English
+  Chinese
+  Both
 }

@@ -8,10 +8,14 @@ const NOTIFICATION_QUEUE_NAME = 'notifications'
 
 class QueueService {
   constructor() {
-    this.notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
-      connection: redisConnection
-    })
-    this.worker = null
+    this.notificationQueue = null;
+    this.worker = null;
+
+    if (process.env.NODE_ENV !== 'test') {
+      this.notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
+        connection: redisConnection
+      })
+    }
   }
 
   async addNotificationJob(data) {

@@ -1,136 +1,122 @@
-import prisma from '../config/prisma.js'
-import { NotFoundError } from '../utils/errors.js'
-import { handlePrismaError } from '../utils/prisma.js'
-import { Prisma } from '@prisma/client'
+import BaseRepository from "./base.repository.js";
 
-class StudentRepository {
-  async create(studentData) {
-    try {
-      return await prisma.student.create({
-        data: studentData
-      })
-    } catch (error) {
-      handlePrismaError(error, 'Student')
-    }
+class StudentRepository extends BaseRepository {
+  constructor() {
+    super("Student");
   }
 
   async findByEmail(email) {
-    return await prisma.student.findUnique({
-      where: { email: email.toLowerCase() }
-    })
-  }
-
-  async findById(id) {
-    const student = await prisma.student.findUnique({
-      where: { id }
-    })
-    if (!student) {
-      throw new NotFoundError('Student')
-    }
-    return student
-  }
-
-  async findAll({ skip, take } = {}) {
-    return await prisma.student.findMany({
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take,
-    })
-  }
-
-  async count() {
-    return await prisma.student.count()
+    return await this.model.findUnique({
+      where: { email: email.toLowerCase() },
+    });
   }
 
   async findByEmailOrNull(email) {
-    return await prisma.student.findUnique({
-      where: { email: email.toLowerCase() }
-    })
+    return await this.model.findUnique({
+      where: { email: email.toLowerCase() },
+    });
   }
 
   async findByPassportNumber(passportNumber) {
-    return await prisma.student.findUnique({
-      where: { passportNumber: passportNumber.toUpperCase() }
-    })
-  }
-
-  async update(id, updateData) {
-    return await prisma.student.update({
-      where: { id },
-      data: updateData
-    })
+    return await this.model.findUnique({
+      where: { passportNumber: passportNumber.toUpperCase() },
+    });
   }
 
   async updateEmailVerification(id, isVerified) {
-    return await this.update(id, { isEmailVerified: isVerified })
+    return await this.update(id, { isEmailVerified: isVerified });
   }
 
   async updatePassword(id, hashedPassword) {
-    return await prisma.student.update({
+    return await this.model.update({
       where: { id },
-      data: { password: hashedPassword }
-    })
+      data: { password: hashedPassword },
+    });
   }
 
   async savePasswordResetToken(id, token, expiresAt) {
-    return await prisma.student.update({
+    return await this.model.update({
       where: { id },
       data: {
         passwordResetToken: token,
-        passwordResetExpires: expiresAt
-      }
-    })
+        passwordResetExpires: expiresAt,
+      },
+    });
   }
 
   async findByPasswordResetToken(token) {
-    return await prisma.student.findFirst({
+    return await this.model.findFirst({
       where: {
         passwordResetToken: token,
-        passwordResetExpires: { gt: new Date() }
-      }
-    })
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
   }
 
   async clearPasswordResetToken(id) {
-    return await prisma.student.update({
+    return await this.model.update({
       where: { id },
       data: {
         passwordResetToken: null,
-        passwordResetExpires: null
-      }
-    })
+        passwordResetExpires: null,
+      },
+    });
   }
 
   async saveOTP(id, otp, expiresAt) {
-    return await prisma.student.update({
+    return await this.model.update({
       where: { id },
       data: {
         emailVerificationOTP: otp,
-        emailVerificationOTPExpires: expiresAt
-      }
-    })
+        emailVerificationOTPExpires: expiresAt,
+      },
+    });
   }
 
   async verifyOTP(email, otp) {
-    const student = await prisma.student.findFirst({
+    return await this.model.findFirst({
       where: {
         email: email.toLowerCase(),
         emailVerificationOTP: otp,
-        emailVerificationOTPExpires: { gt: new Date() }
-      }
-    })
-    return student
+        emailVerificationOTPExpires: { gt: new Date() },
+      },
+    });
   }
 
   async clearOTP(id) {
-    return await prisma.student.update({
+    return await this.model.update({
       where: { id },
       data: {
         emailVerificationOTP: null,
-        emailVerificationOTPExpires: null
-      }
-    })
+        emailVerificationOTPExpires: null,
+      },
+    });
+  }
+
+  async findByIdWithoutPassword(id) {
+    return await this.model.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        gender: true,
+        dateOfBirth: true,
+        phone: true,
+        country: true,
+        city: true,
+        passportNumber: true,
+        profilePicture: true,
+        isEmailVerified: true,
+        status: true,
+        profile: true,
+        createdAt: true,
+        updatedAt: true,
+        // Exclude password and tokens
+      },
+    });
   }
 }
 
-export default new StudentRepository()
+export default new StudentRepository();

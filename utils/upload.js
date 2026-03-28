@@ -1,84 +1,59 @@
-import multer from 'multer'
-import path from 'path'
-import fs from 'fs'
-import { getUploadPath } from './paths.js'
-import { MAX_PROFILE_PICTURE_SIZE, MAX_DOCUMENT_SIZE, MAX_VIDEO_SIZE, IMAGE_TYPES } from '../config/constants.js'
+/**
+ * upload.js — Multer configuration for all file uploads.
+ *
+ * We use memoryStorage so files land as req.file.buffer
+ * and can be passed directly to Cloudinary (or any other cloud provider).
+ * Nothing ever touches the local disk.
+ */
+import multer from "multer";
+import {
+  MAX_PROFILE_PICTURE_SIZE,
+  MAX_DOCUMENT_SIZE,
+  MAX_VIDEO_SIZE,
+  IMAGE_TYPES,
+} from "../config/constants.js";
 
-const createStorage = (destinationPath) => {
-  return multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadPath = getUploadPath(destinationPath)
-      if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true })
-      }
-      cb(null, uploadPath)
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname)
-      const filename = `${Date.now()}_${file.originalname.replace(/[^A-Za-z0-9._-]/g, '_')}`
-      cb(null, filename)
-    }
-  })
-}
+// All uploads go to memory (req.file.buffer), not disk
+const memoryStorage = multer.memoryStorage();
 
-const imageFilter = (req, file, cb) => {
-  const extname = IMAGE_TYPES.test(path.extname(file.originalname).toLowerCase())
-  const mimetype = IMAGE_TYPES.test(file.mimetype)
-  if (extname && mimetype) {
-    cb(null, true)
+// Validate that image files are actually images
+const imageFilter = (_req, file, cb) => {
+  if (IMAGE_TYPES.test(file.mimetype)) {
+    cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed'))
+    cb(new Error("Only image files are allowed (.jpg, .png, .gif, .webp)"));
   }
-}
+};
 
-export const createProfilePictureUpload = (userType) => {
-  return multer({
-    storage: createStorage(`profile-pictures/${userType}s`),
+// Validate that application documents are safe types
+const documentFilter = (_req, file, cb) => {
+  const allowedTypes = /pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|jpeg|png|jpg/;
+  if (allowedTypes.test(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Invalid file type. Only PDF, Word documents, and images are allowed."));
+  }
+};
+
+/** For student/admin profile picture uploads */
+export const createProfilePictureUpload = () =>
+  multer({
+    storage: memoryStorage,
     limits: { fileSize: MAX_PROFILE_PICTURE_SIZE },
-    fileFilter: imageFilter
-  })
-}
+    fileFilter: imageFilter,
+  });
 
-// No category or product uploads required as these modules were removed
+/** For application documents (PDFs, Word, etc.) */
+export const createApplicationDocumentUpload = () =>
+  multer({
+    storage: memoryStorage,
+    limits: { fileSize: MAX_DOCUMENT_SIZE },
+    fileFilter: documentFilter,
+  });
 
-
-export const createApplicationDocumentUpload = () => {
-  return multer({
-    storage: multer.diskStorage({
-      destination: (req, file, cb) => {
-        const applicationId = req.params.id || 'temp'
-        const uploadPath = getUploadPath(`applications/${applicationId}/admin-docs`)
-        if (!fs.existsSync(uploadPath)) {
-          fs.mkdirSync(uploadPath, { recursive: true })
-        }
-        cb(null, uploadPath)
-      },
-      filename: (req, file, cb) => {
-        const sanitized = file.originalname.replace(/[^A-Za-z0-9._-]/g, '_')
-        const docType = req.body.documentType || 'document'
-        cb(null, `${docType}_${Date.now()}_${sanitized}`)
-      }
-    }),
-    limits: { fileSize: MAX_DOCUMENT_SIZE }
-  })
-}
-
-export const createStudentDocumentUpload = () => {
-  return multer({
-    storage: multer.diskStorage({
-      destination: (req, file, cb) => {
-        const applicationId = req.params.applicationId || 'temp'
-        const uploadPath = getUploadPath(`applications/${applicationId}`)
-        if (!fs.existsSync(uploadPath)) {
-          fs.mkdirSync(uploadPath, { recursive: true })
-        }
-        cb(null, uploadPath)
-      },
-      filename: (req, file, cb) => {
-        const sanitized = file.originalname.replace(/[^A-Za-z0-9._-]/g, '_')
-        cb(null, `${Date.now()}_${sanitized}`)
-      }
-    }),
-    limits: { fileSize: MAX_VIDEO_SIZE }
-  })
-}
+/** For general student documents and larger files */
+export const createStudentDocumentUpload = () =>
+  multer({
+    storage: memoryStorage,
+    limits: { fileSize: MAX_VIDEO_SIZE },
+  });

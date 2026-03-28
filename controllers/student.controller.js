@@ -2,7 +2,7 @@ import studentService from '../services/student.service.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
 import { ValidationError } from '../utils/errors.js'
 import { sendSuccess, sendCreated } from '../utils/response.js'
-import { replaceUploadedFile } from '../utils/fileHelper.js'
+import storageService from '../utils/storage.js'
 import { setTokenCookie, clearTokenCookie } from '../utils/token.js'
 
 class StudentController {
@@ -94,16 +94,16 @@ class StudentController {
       throw new ValidationError('No file provided')
     }
 
-    const newFilePath = await replaceUploadedFile(
-      req.student?.profilePicture,
-      req.file.filename,
-      'profile-pictures/students'
-    )
+    // Upload new picture to Cloudinary → nadoumi/students/profiles/
+    const uploaded = await storageService.upload(req.file.buffer, {
+      folder: 'students/profiles',
+      filename: req.file.originalname,
+    })
 
     const result = await studentService.updateProfilePicture(
       req.student.id,
-      newFilePath,
-      req.student?.profilePicture
+      uploaded.url,                     // Store the Cloudinary CDN URL
+      req.student?.profilePicture       // Old URL — passed to service for Cloudinary deletion
     )
 
     sendSuccess(res, { profilePicture: result.profilePicture })

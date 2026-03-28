@@ -17,7 +17,29 @@ import logger from '../utils/logger.js'
 
 class StudentService {
   async register(studentData) {
-    const { email, password, passportNumber, ...rest } = studentData
+    const { 
+      email, 
+      password, 
+      passportNumber, 
+      firstName, 
+      lastName, 
+      country, 
+      city, 
+      gender, 
+      phone, 
+      dateOfBirth,
+      // Education fields
+      currentLevel,
+      university,
+      major,
+      gpa,
+      gradYear,
+      // Scholarship goals fields
+      studyLevel,
+      desiredField,
+      preferredCities,
+      preferredLanguages
+    } = studentData
 
     const existingByEmail = await studentRepository.findByEmailOrNull(email)
     if (existingByEmail) {
@@ -31,12 +53,34 @@ class StudentService {
 
     const hashedPassword = await hashPassword(password)
 
+    // Map to Student model structure
     const student = await studentRepository.create({
-      ...rest,
       email: email.toLowerCase(),
       password: hashedPassword,
+      firstName,
+      lastName,
+      country,
+      city,
+      gender,
+      phone,
       passportNumber: passportNumber.toUpperCase(),
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       isEmailVerified: false,
+      profile: {
+        education: [{
+          institution: university,
+          degree: currentLevel,
+          field: major,
+          gpa: gpa ? parseFloat(gpa) : null,
+          gradYear: gradYear
+        }],
+        preferences: {
+          studyLevel,
+          desiredField,
+          preferredCities,
+          preferredLanguages
+        }
+      }
     })
 
     // Auto-verify if email service is disabled
@@ -161,7 +205,7 @@ class StudentService {
   }
 
   async getProfile(studentId) {
-    const student = await studentRepository.findById(studentId)
+    const student = await studentRepository.findByIdWithoutPassword(studentId)
     return student
   }
 

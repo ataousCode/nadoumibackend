@@ -11,7 +11,6 @@ export const handlePrismaError = (error, modelName = 'Record') => {
       case 'P2025': {
         throw new ValidationError(`${modelName} not found or transition not allowed`)
       }
-      // Add more cases as needed
     }
   }
   throw error
