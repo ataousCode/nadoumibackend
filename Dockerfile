@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Install build dependencies for native modules (sharp, etc.)
 RUN apt-get update && apt-get install -y \
+    openssl \
     python3 \
     make \
     g++ \
@@ -31,6 +32,9 @@ RUN npm prune --production
 # Stage 3: Runtime
 FROM node:18-slim
 WORKDIR /app
+
+# Install runtime dependencies (OpenSSL is required by Prisma)
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Security: Run as non-root user
 RUN groupadd -r nodejs && useradd -r -g nodejs nodeuser
