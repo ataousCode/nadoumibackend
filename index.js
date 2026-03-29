@@ -195,10 +195,18 @@ async function startServer() {
     } catch (error) {
       retryCount++;
       if (retryCount >= maxRetries) {
+        logger.error("All Prisma connection retries failed.", {
+          code: error.code,
+          message: error.message,
+          stack: error.stack,
+          dbUrl: process.env.DATABASE_URL?.replace(/:.*@/, ":****@"),
+        });
         throw error;
       }
       logger.warn(`Prisma connection attempt ${retryCount} failed. Retrying in 2s...`, {
-        error: error.message
+        code: error.code,
+        message: error.message,
+        dbUrl: process.env.DATABASE_URL?.replace(/:.*@/, ":****@"),
       });
       await new Promise(resolve => setTimeout(resolve, 2000));
       return connectWithRetry();
