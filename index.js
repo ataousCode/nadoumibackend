@@ -47,7 +47,11 @@ const frontendUrl = normalizeOrigin(FRONTEND_URL);
 // In development, we can allow localhost and others if needed.
 const ALLOWED_ORIGINS = new Set(
   process.env.NODE_ENV === "production"
-    ? [frontendUrl]
+    ? [
+        frontendUrl,
+        "https://nadoumibackend.up.railway.app",
+        normalizeOrigin(process.env.RAILWAY_STATIC_URL),
+      ]
     : [frontendUrl, "http://localhost:5173", "http://localhost:3000"]
 );
 
