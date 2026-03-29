@@ -9,7 +9,7 @@ const envSchema = Joi.object({
     .valid("development", "production", "test")
     .default("development"),
   PORT: Joi.number().default(3001),
-  DATABASE_URL: Joi.string()
+  PROD_DATABASE_URL: Joi.string()
     .required()
     .description("PostgreSQL connection string"),
   REDIS_URL: Joi.string().required().description("Redis connection string"),
@@ -69,4 +69,10 @@ if (error) {
   }
 }
 
-export default envVars;
+// Map PROD_DATABASE_URL to DATABASE_URL for parts of the app that expect it
+const finalEnv = {
+  ...envVars,
+  DATABASE_URL: envVars.PROD_DATABASE_URL,
+};
+
+export default finalEnv;
