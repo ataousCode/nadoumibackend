@@ -16,7 +16,7 @@ const options = {
     },
     servers: [
       {
-        url: process.env.API_URL || "http://localhost:3001",
+        url: process.env.API_URL || (process.env.NODE_ENV === "production" ? "/" : "http://localhost:3001"),
         description: process.env.NODE_ENV === "production" ? "Production Server" : "Development Server",
       },
     ],
