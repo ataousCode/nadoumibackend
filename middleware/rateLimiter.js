@@ -9,15 +9,21 @@ import logger from '../utils/logger.js'
  */
 function buildStore(prefix) {
   if (process.env.NODE_ENV === 'test') return undefined;
+  
+  // If Redis is not yet connected, fall back to MemoryStore instead of crashing
+  if (!redisConnection || redisConnection.status !== 'ready') {
+    logger.warn(`Rate limiter (${prefix}): Redis not ready, using MemoryStore fallback`);
+    return undefined;
+  }
+
   try {
     return new RedisStore({
       prefix,
-      // rate-limit-redis needs a send_command-style client
       sendCommand: (...args) => redisConnection.call(...args),
-    })
+    });
   } catch (err) {
-    logger.warn('Rate limiter: falling back to in-memory store', { error: err.message })
-    return undefined // express-rate-limit defaults to MemoryStore
+    logger.warn(`Rate limiter (${prefix}): initialization failed, using MemoryStore fallback`, { error: err.message });
+    return undefined; // express-rate-limit defaults to MemoryStore
   }
 }
 
