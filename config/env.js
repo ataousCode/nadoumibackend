@@ -16,7 +16,9 @@ const envSchema = Joi.object({
     .valid("true", "false")
     .default("false")
     .description("Whether to use the Redis adapter for Socket.io"),
-  REDIS_URL: Joi.string().required().description("Redis connection string"),
+  REDIS_URL: Joi.string()
+    .required()
+    .description("Redis connection string (REQUIRED)"),
   JWT_SECRET: Joi.string()
     .required()
     .min(32)

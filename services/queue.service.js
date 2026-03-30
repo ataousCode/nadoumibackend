@@ -19,10 +19,21 @@ class QueueService {
   }
 
   async addNotificationJob(data) {
-    return await this.notificationQueue.add('send-email', data, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 }
-    })
+    if (!this.notificationQueue) return;
+
+    try {
+      return await this.notificationQueue.add("send-email", data, {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+      });
+    } catch (err) {
+      // Don't throw - we don't want a failed notification job to block a login or register
+      logger.error("Failed to add notification job to queue:", {
+        error: err.message,
+        jobType: data?.type,
+      });
+      return null;
+    }
   }
 
   initializeWorker() {
