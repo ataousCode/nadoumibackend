@@ -16,15 +16,19 @@ export const initSocket = (server, allowedOrigins) => {
   });
 
   const redisUrl = process.env.REDIS_URL;
-  if (redisUrl) {
+  const useRedisAdapter = process.env.USE_REDIS_SOCKET_ADAPTER === "true";
+
+  if (redisUrl && useRedisAdapter) {
     try {
       const pubClient = new Redis(redisUrl);
       const subClient = pubClient.duplicate();
       io.adapter(createAdapter(pubClient, subClient));
-      logger.info("Socket.io Redis adapter initialized");
+      logger.info("Socket.io Redis adapter initialized (Multi-instance mode)");
     } catch (err) {
       logger.error("Failed to initialize Socket.io Redis adapter:", err);
     }
+  } else if (redisUrl && !useRedisAdapter) {
+    logger.info("Socket.io using in-memory adapter (Single-instance mode). Redis adapter disabled to save limits.");
   } else {
     logger.warn("REDIS_URL not provided, falling back to in-memory adapter");
   }

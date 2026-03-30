@@ -12,6 +12,10 @@ const envSchema = Joi.object({
   PROD_DATABASE_URL: Joi.string()
     .required()
     .description("PostgreSQL connection string"),
+  USE_REDIS_SOCKET_ADAPTER: Joi.string()
+    .valid("true", "false")
+    .default("false")
+    .description("Whether to use the Redis adapter for Socket.io"),
   REDIS_URL: Joi.string().required().description("Redis connection string"),
   JWT_SECRET: Joi.string()
     .required()
