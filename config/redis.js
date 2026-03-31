@@ -12,41 +12,35 @@ if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) {
 // Upstash (and any TLS-enabled Redis) requires `tls: {}` when using rediss://
 const isTLS = REDIS_URL.startsWith("rediss://");
 
-let redisConnection;
+const commonOptions = {
+  maxRetriesPerRequest: null,
+  keepAlive: 30000,
+  ...(isTLS && { tls: { rejectUnauthorized: false } }),
+};
 
-if (process.env.NODE_ENV !== "test") {
-  redisConnection = new Redis(REDIS_URL, {
-    maxRetriesPerRequest: null, // Required for BullMQ
-    connectTimeout: 5000, // Reduced from 20s to fail fast
-    keepAlive: 30000,
-    retryStrategy(times) {
-      const delay = Math.min(times * 500, 10000); // More aggressive backoff
-      return delay;
-    },
-    enableOfflineQueue: false, // CRITICAL: Stop buffering commands if disconnected (prevents hang)
-    ...(isTLS && { tls: { rejectUnauthorized: false } }),
-  });
+// Resilient configuration for BullMQ worker (allows retries and offline queue)
+export const resilientConfig = {
+  ...commonOptions,
+  connectTimeout: 20000,
+  enableOfflineQueue: true,
+};
 
-  redisConnection.on("connect", () => {
-    logger.info("Connected to Redis");
-  });
+// Strict, fail-fast connection for API requests (prevents hangs)
+const redisConnection = new Redis(REDIS_URL, {
+  ...commonOptions,
+  connectTimeout: 5000,
+  enableOfflineQueue: false,
+  retryStrategy(times) {
+    return Math.min(times * 500, 10000);
+  },
+});
 
-  redisConnection.on("error", (err) => {
-    logger.error("Redis connection error", { error: err.message });
-  });
-} else {
-  // Mock Redis for tests
-  redisConnection = {
-    on: () => {},
-    off: () => {},
-    quit: async () => {},
-    call: async () => 0,
-    get: async () => null,
-    set: async () => "OK",
-    del: async () => 1,
-    keys: async () => [],
-    options: {},
-  };
-}
+redisConnection.on("connect", () => {
+  logger.info("Connected to Redis (Direct Client)");
+});
+
+redisConnection.on("error", (err) => {
+  logger.error("Redis connection error (Direct Client)", { error: err.message });
+});
 
 export default redisConnection;

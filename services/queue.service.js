@@ -1,10 +1,12 @@
+import Redis from 'ioredis'
 import { Queue, Worker } from 'bullmq'
-import redisConnection from '../config/redis.js'
+import redisConnection, { resilientConfig } from '../config/redis.js'
 import emailService from './email.service.js'
 import notificationRepository from '../repositories/notification.repository.js'
 import logger from '../utils/logger.js'
 
 const NOTIFICATION_QUEUE_NAME = 'notifications'
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 
 class QueueService {
   constructor() {
@@ -12,8 +14,10 @@ class QueueService {
     this.worker = null;
 
     if (process.env.NODE_ENV !== 'test') {
+      // Use a dedicated, resilient connection for the Queue
+      const queueConnection = new Redis(REDIS_URL, resilientConfig);
       this.notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
-        connection: redisConnection
+        connection: queueConnection
       })
     }
   }
@@ -37,6 +41,12 @@ class QueueService {
   }
 
   initializeWorker() {
+    // Dedicated connection for the Worker (allows blocking operations)
+    const workerConnection = new Redis(REDIS_URL, {
+      ...resilientConfig,
+      maxRetriesPerRequest: null, // Required by BullMQ for workers
+    });
+
     this.worker = new Worker(
       NOTIFICATION_QUEUE_NAME,
       async (job) => {
@@ -62,8 +72,16 @@ class QueueService {
           throw error
         }
       },
-      { connection: redisConnection }
+      { connection: workerConnection }
     )
+
+    this.worker.on('ready', () => {
+      logger.info('Notification Worker: Connected to Redis and ready to process jobs');
+    });
+
+    this.worker.on('error', (err) => {
+      logger.error('Notification Worker: Redis error', { error: err.message });
+    });
 
     this.worker.on('completed', (job) => {
       logger.info(`Notification job completed`, { jobId: job.id })
