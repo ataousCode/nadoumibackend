@@ -27,14 +27,23 @@ class EmailService {
         status: 'pending'
       })
 
-      await queueService.addNotificationJob({
-        notificationId: notification.id,
-        type,
-        recipient,
-        subject,
-        template,
-        content
-      })
+      // Fire and forget: don't await the background job addition.
+      // This ensures the main request (like register/login) is NOT blocked by Redis latency.
+      queueService
+        .addNotificationJob({
+          notificationId: notification.id,
+          type,
+          recipient,
+          subject,
+          template,
+          content,
+        })
+        .catch((err) => {
+          logger.error("Background queue addition failed:", {
+            error: err.message,
+            notificationId: notification.id,
+          });
+        });
 
       return notification
     } catch (error) {
