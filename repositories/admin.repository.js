@@ -68,6 +68,19 @@ class AdminRepository extends BaseRepository {
       data: { profilePicture: profilePicturePath },
     });
   }
+  async findAllForSupport() {
+    return await this.model.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        profilePicture: true,
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+  }
 }
 
 export default new AdminRepository();

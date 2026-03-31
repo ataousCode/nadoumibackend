@@ -21,12 +21,6 @@ export const ROLES = {
   STUDENT: "student",
 };
 
-// Support Admins (Only these admins can be messaged by students)
-export const SUPPORT_ADMIN_EMAILS = [
-  "team@nadoumiconsulting.com",
-  "almouslecka@gmail.com",
-];
-
 // University Statuses
 export const UNIVERSITY_STATUS = {
   ACTIVE: "active",

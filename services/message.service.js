@@ -2,7 +2,6 @@ import BaseService from "./base.service.js";
 import conversationRepository from "../repositories/conversation.repository.js";
 import messageRepository from "../repositories/message.repository.js";
 import adminRepository from "../repositories/admin.repository.js";
-import { SUPPORT_ADMIN_EMAILS } from "../config/constants.js";
 import { NotFoundError } from "../utils/errors.js";
 
 class MessageService extends BaseService {
@@ -11,15 +10,7 @@ class MessageService extends BaseService {
   }
 
   async getSupportAdmins() {
-    const admins = await Promise.all(
-      SUPPORT_ADMIN_EMAILS.map(email => adminRepository.findByEmailOrNull(email))
-    );
-    return admins.filter(Boolean).map(admin => ({
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      profilePicture: admin.profilePicture
-    }));
+    return await adminRepository.findAllForSupport();
   }
 
   async getAdminConversations(adminId) {
@@ -80,10 +71,10 @@ class MessageService extends BaseService {
   }
 
   async getOrCreateConversation(studentId, adminId) {
-    // Validate adminId is one of the support admins
+    // Validate adminId exists
     const admin = await adminRepository.findByIdWithoutPassword(adminId);
-    if (!admin || !SUPPORT_ADMIN_EMAILS.includes(admin.email.toLowerCase())) {
-        throw new Error("This admin is not authorized for support communication");
+    if (!admin) {
+        throw new Error("Invalid Administrator selected");
     }
     return await conversationRepository.findOrCreate(studentId, adminId);
   }
@@ -106,8 +97,8 @@ class MessageService extends BaseService {
     } else if (adminId && senderRole === 'student') {
       // Validate adminId
       const admin = await adminRepository.findByIdWithoutPassword(adminId);
-      if (!admin || !SUPPORT_ADMIN_EMAILS.includes(admin.email.toLowerCase())) {
-          throw new Error("This admin is not authorized for support communication");
+      if (!admin) {
+          throw new Error("Invalid Administrator selected");
       }
       conversation = await conversationRepository.findOrCreate(senderId, adminId);
     } else {
