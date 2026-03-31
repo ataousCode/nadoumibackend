@@ -109,7 +109,6 @@ class StudentRepository extends BaseRepository {
         passportNumber: true,
         profilePicture: true,
         isEmailVerified: true,
-        status: true,
         profile: true,
         createdAt: true,
         updatedAt: true,
