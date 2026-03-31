@@ -62,21 +62,29 @@ export const authenticate = (roles) => async (req, res, next) => {
     }
 
     // 4. Fetch the user based on the type in the token
-    const { getUser, reqKey } = roleConfig[decoded.type];
-    const user = await getUser(decoded.id);
-
-    if (!user) {
-      return res.status(401).json({ error: 'User not found or disabled' });
-    }
-
-    // Attach to request
-    req[reqKey] = user;
-    req.user = user;
-    req.userRole = decoded.type;
+    const { getUser, reqKey } = roleConfig[decoded.type]
     
-    next();
+    try {
+      const user = await getUser(decoded.id)
+      if (!user) {
+        return res.status(401).json({ error: 'User account not found or deactivated' })
+      }
+      
+      // Attach to request
+      req[reqKey] = user
+      req.user = user
+      req.userRole = decoded.type
+      
+      next()
+    } catch (dbError) {
+      // If repository throws NotFoundError, it ends up here
+      return res.status(401).json({ error: 'Authentication failed: User not found' })
+    }
   } catch (error) {
-    res.status(401).json({ error: "Authentication failed" });
+    const message = error.name === 'TokenExpiredError' 
+      ? 'Your session has expired. Please log in again.' 
+      : 'Authentication failed';
+    res.status(401).json({ error: message });
   }
 };
 
