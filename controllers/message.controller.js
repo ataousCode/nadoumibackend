@@ -22,7 +22,22 @@ class MessageController {
   });
 
   getSupportAdmins = asyncHandler(async (req, res) => {
-    const admins = await messageService.getSupportAdmins();
+    console.log(`[AUTH DEBUG] Student identity: ${req.user?.email || 'Unknown'} (id: ${req.user?.id || '?'})`);
+    
+    let admins = await messageService.getSupportAdmins();
+    console.log(`[DB DEBUG] Database query found ${admins?.length || 0} administrators`);
+
+    // EMERGENCY FALLBACK: If DB is empty, ensure at least one contact is visible for chat.
+    if (!admins || admins.length === 0) {
+      console.warn(`[RESCUE] No administrators in database. Injecting fallback Support contact.`);
+      admins = [{
+        id: "office-support-general", // Special ID handled by the backend
+        name: "Nadoumi Support",
+        email: "team@nadoumiconsulting.com",
+        profilePicture: null
+      }];
+    }
+    
     sendSuccess(res, admins);
   });
 
