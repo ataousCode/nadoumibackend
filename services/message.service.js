@@ -71,16 +71,29 @@ class MessageService extends BaseService {
   }
 
   async getOrCreateConversation(studentId, adminId) {
+    let targetAdminId = adminId;
+    
+    // RESCUE: Handle the frontend fallback ID
+    if (adminId === "office-support-general") {
+      const admins = await adminRepository.findAllForSupport();
+      if (admins && admins.length > 0) {
+        targetAdminId = admins[0].id;
+      } else {
+        throw new Error("No administrators available to receive this message. Please try again later.");
+      }
+    }
+
     // Validate adminId exists
-    const admin = await adminRepository.findByIdWithoutPassword(adminId);
+    const admin = await adminRepository.findByIdWithoutPassword(targetAdminId);
     if (!admin) {
         throw new Error("Invalid Administrator selected");
     }
-    return await conversationRepository.findOrCreate(studentId, adminId);
+    return await conversationRepository.findOrCreate(studentId, targetAdminId);
   }
 
   async sendMessage(senderId, senderRole, { conversationId, adminId, content, type, fileInfo }) {
     let conversation;
+    let targetAdminId = adminId;
     
     if (conversationId) {
       conversation = await conversationRepository.findById(conversationId);
@@ -94,13 +107,23 @@ class MessageService extends BaseService {
       if (!isParticipant) {
         throw new Error("Unauthorized: You are not a participant in this conversation");
       }
-    } else if (adminId && senderRole === 'student') {
+    } else if (targetAdminId && senderRole === 'student') {
+      // RESCUE: Handle the frontend fallback ID
+      if (targetAdminId === "office-support-general") {
+        const admins = await adminRepository.findAllForSupport();
+        if (admins && admins.length > 0) {
+          targetAdminId = admins[0].id;
+        } else {
+          throw new Error("No administrators available to receive this message.");
+        }
+      }
+
       // Validate adminId
-      const admin = await adminRepository.findByIdWithoutPassword(adminId);
+      const admin = await adminRepository.findByIdWithoutPassword(targetAdminId);
       if (!admin) {
           throw new Error("Invalid Administrator selected");
       }
-      conversation = await conversationRepository.findOrCreate(senderId, adminId);
+      conversation = await conversationRepository.findOrCreate(senderId, targetAdminId);
     } else {
       throw new Error("Conversation ID or Admin ID is required to send a message");
     }
