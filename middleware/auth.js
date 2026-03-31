@@ -12,7 +12,7 @@ const roleConfig = {
     cookieName: 'adminToken',
   },
   [ROLES.STUDENT]: {
-    getUser: (id) => studentRepository.findById(id),
+    getUser: (id) => studentRepository.findByIdWithoutPassword(id),
     reqKey: 'student',
     cookieName: 'studentToken',
   },
