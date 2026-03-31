@@ -2,6 +2,7 @@ import messageService from "../services/message.service.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { sendSuccess } from "../utils/response.js";
 import storageService from "../utils/storage.js";
+import prisma from "../config/prisma.js";
 
 class MessageController {
   getConversations = asyncHandler(async (req, res) => {
@@ -22,23 +23,16 @@ class MessageController {
   });
 
   getSupportAdmins = asyncHandler(async (req, res) => {
-    console.log(`[AUTH DEBUG] Student identity: ${req.user?.email || 'Unknown'} (id: ${req.user?.id || '?'})`);
+    console.log(`[DIAGNOSTIC] Support admins requested by ${req.user?.email || 'Unknown'}`);
     
-    let admins = await messageService.getSupportAdmins();
-    console.log(`[DB DEBUG] Database query found ${admins?.length || 0} administrators`);
+    // Direct Database Count Test
+    const rawAdminCount = await prisma.admin.count();
+    console.log(`[DIAGNOSTIC] RAW DATABASE COUNT: Found ${rawAdminCount} administrators in the Admin table.`);
 
-    // EMERGENCY FALLBACK: If DB is empty, ensure at least one contact is visible for chat.
-    if (!admins || admins.length === 0) {
-      console.warn(`[RESCUE] No administrators in database. Injecting fallback Support contact.`);
-      admins = [{
-        id: "office-support-general", // Special ID handled by the backend
-        name: "Nadoumi Support",
-        email: "team@nadoumiconsulting.com",
-        profilePicture: null
-      }];
-    }
-    
-    sendSuccess(res, admins);
+    const admins = await messageService.getSupportAdmins();
+    console.log(`[DIAGNOSTIC] SERVICE RESULT: Found ${admins?.length || 0} administrators via service layer.`);
+
+    sendSuccess(res, admins || []);
   });
 
   getMessages = asyncHandler(async (req, res) => {
