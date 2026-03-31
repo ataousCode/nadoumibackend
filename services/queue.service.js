@@ -14,8 +14,11 @@ class QueueService {
     this.worker = null;
 
     if (process.env.NODE_ENV !== 'test') {
-      // Use a dedicated, resilient connection for the Queue
       const queueConnection = new Redis(REDIS_URL, resilientConfig);
+      
+      queueConnection.on('error', (err) => logger.error('Queue Redis Error', { error: err.message }));
+      queueConnection.on('connect', () => logger.info('Queue Redis Connected'));
+
       this.notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
         connection: queueConnection
       })
@@ -23,15 +26,19 @@ class QueueService {
   }
 
   async addNotificationJob(data) {
-    if (!this.notificationQueue) return;
+    if (!this.notificationQueue) {
+       logger.error("Attempted to add job but notificationQueue is null");
+       return;
+    }
 
     try {
-      return await this.notificationQueue.add("send-email", data, {
+      const job = await this.notificationQueue.add("send-email", data, {
         attempts: 3,
         backoff: { type: "exponential", delay: 5000 },
       });
+      logger.info(`Notification job added to queue`, { jobId: job.id, type: data?.type });
+      return job;
     } catch (err) {
-      // Don't throw - we don't want a failed notification job to block a login or register
       logger.error("Failed to add notification job to queue:", {
         error: err.message,
         jobType: data?.type,
@@ -41,15 +48,19 @@ class QueueService {
   }
 
   initializeWorker() {
-    // Dedicated connection for the Worker (allows blocking operations)
     const workerConnection = new Redis(REDIS_URL, {
       ...resilientConfig,
-      maxRetriesPerRequest: null, // Required by BullMQ for workers
+      maxRetriesPerRequest: null,
     });
+
+    workerConnection.on('error', (err) => logger.error('Worker Redis Error', { error: err.message }));
+    workerConnection.on('connect', () => logger.info('Worker Redis Connected'));
+    workerConnection.on('ready', () => logger.info('Worker Redis Ready'));
 
     this.worker = new Worker(
       NOTIFICATION_QUEUE_NAME,
       async (job) => {
+        logger.info(`Worker processing job ${job.id}`, { type: job.data.type });
         const { notificationId, type, recipient, subject, template, content } = job.data
 
         try {
@@ -61,6 +72,7 @@ class QueueService {
             status: 'sent',
             sentAt: new Date()
           })
+          logger.info(`Notification job ${job.id} success`);
         } catch (error) {
           logger.error(`Job ${job.id} failed`, { error: error.message })
 
@@ -75,23 +87,11 @@ class QueueService {
       { connection: workerConnection }
     )
 
-    this.worker.on('ready', () => {
-      logger.info('Notification Worker: Connected to Redis and ready to process jobs');
-    });
-
-    this.worker.on('error', (err) => {
-      logger.error('Notification Worker: Redis error', { error: err.message });
-    });
-
-    this.worker.on('completed', (job) => {
-      logger.info(`Notification job completed`, { jobId: job.id })
-    })
-
     this.worker.on('failed', (job, err) => {
-      logger.error(`Notification job failed after all attempts`, { jobId: job.id, error: err.message })
+      logger.error(`Notification job ${job?.id} failed permanently`, { error: err.message })
     })
 
-    logger.info('Notification Worker initialized')
+    logger.info('Notification Worker instance created');
   }
 
   async shutdown() {

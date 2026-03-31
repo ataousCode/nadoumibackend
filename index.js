@@ -211,26 +211,26 @@ async function startServer() {
   try {
     await connectWithRetry();
 
+    logger.info("Initializing Email Config...");
     emailConfig.initialize();
-    // ... rest of startServer logic
 
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "development") {
       try {
         await emailConfig.verify();
-        logger.info("Email service verified");
-      } catch {
-        logger.warn(
-          "Email service verification failed. Make sure MailDev is running.",
-        );
+        logger.info("Email SMTP connection verified successfully");
+      } catch (error) {
+        logger.error("Email SMTP verification FAILED", { error: error.message });
       }
     }
 
+    logger.info("Initializing Notification Worker...");
     queueService.initializeWorker();
 
     server.listen(PORT, () => {
-      logger.info(`Server running on http://localhost:${PORT}`, {
+      logger.info(`🚀 Nadoumi Backend is LIVE on port ${PORT}`, {
         environment: process.env.NODE_ENV || "development",
         frontendUrl,
+        redisReady: redisConnection.status
       });
     });
   } catch (error) {
