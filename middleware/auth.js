@@ -29,50 +29,53 @@ function extractToken(req, cookieName) {
 
 export const authenticate = (roles) => async (req, res, next) => {
   try {
-    const rolesArray = Array.isArray(roles) ? roles : [roles]
-    let token = null
-    let decoded = null
-    let activeRole = null
-
-    // Try finding a valid token for any of the allowed roles
-    for (const role of rolesArray) {
-      const { cookieName } = roleConfig[role]
-      const t = extractToken(req, cookieName)
-      
-      if (t) {
-        try {
-          const d = verifyToken(t)
-          if (d.type === role) {
-            token = t
-            decoded = d
-            activeRole = role
-            break
-          }
-        } catch (e) {
-          // Token invalid for this role, try next
+    const rolesArray = Array.isArray(roles) ? roles : [roles];
+    
+    // 1. Identify the token (Bearer header has top priority, then specific role cookies)
+    let token = extractBearerToken(req);
+    
+    // If no Bearer, try cookies for the allowed roles
+    if (!token && req.cookies) {
+      for (const role of rolesArray) {
+        if (req.cookies[roleConfig[role].cookieName]) {
+          token = req.cookies[roleConfig[role].cookieName];
+          break;
         }
       }
     }
 
-    if (!token || !decoded || !activeRole) {
-      return res.status(401).json({ error: 'Authentication required' })
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { getUser, reqKey } = roleConfig[activeRole]
-    const user = await getUser(decoded.id)
+    // 2. Decode and verify the token ONCE
+    let decoded;
+    try {
+      decoded = verifyToken(token);
+    } catch (e) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    // 3. Check if the role in the token is allowed for this route
+    if (!rolesArray.includes(decoded.type)) {
+      return res.status(403).json({ error: 'You do not have permission for this action' });
+    }
+
+    // 4. Fetch the user based on the type in the token
+    const { getUser, reqKey } = roleConfig[decoded.type];
+    const user = await getUser(decoded.id);
 
     if (!user) {
-      return res.status(401).json({ error: 'User not found or disabled' })
+      return res.status(401).json({ error: 'User not found or disabled' });
     }
 
+    // Attach to request
     req[reqKey] = user;
-    req.user = user; // Unified access
-    req.userRole = activeRole; // Helpful for multi-role routes
+    req.user = user;
+    req.userRole = decoded.type;
+    
     next();
   } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return res.status(401).json({ error: error.message });
-    }
     res.status(401).json({ error: "Authentication failed" });
   }
 };
