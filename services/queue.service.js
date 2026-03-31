@@ -1,6 +1,6 @@
 import Redis from 'ioredis'
 import { Queue, Worker } from 'bullmq'
-import redisConnection, { resilientConfig } from '../config/redis.js'
+import redisConnection from '../config/redis.js'
 import emailService from './email.service.js'
 import notificationRepository from '../repositories/notification.repository.js'
 import logger from '../utils/logger.js'
