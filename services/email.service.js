@@ -38,11 +38,23 @@ class EmailService {
           template,
           content,
         })
-        .catch((err) => {
-          logger.error("Background queue addition failed:", {
+        .catch(async (err) => {
+          logger.error("Background queue addition failed, attempting DIRECT send as fallback:", {
             error: err.message,
             notificationId: notification.id,
           });
+          
+          // Emergency DIRECT send if Redis queue is failing
+          try {
+            await this._performSend(recipient, subject, template, content);
+            await notificationRepository.update(notificationId, {
+              status: 'sent',
+              sentAt: new Date()
+            });
+            logger.info("Direct fallback send SUCCESS", { notificationId: notification.id });
+          } catch (sendErr) {
+            logger.error("Direct fallback send FAILED", { error: sendErr.message, notificationId: notification.id });
+          }
         });
 
       return notification

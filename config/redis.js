@@ -12,35 +12,25 @@ if (process.env.NODE_ENV === "production" && !process.env.REDIS_URL) {
 // Upstash (and any TLS-enabled Redis) requires `tls: {}` when using rediss://
 const isTLS = REDIS_URL.startsWith("rediss://");
 
-const commonOptions = {
-  maxRetriesPerRequest: null,
-  keepAlive: 30000,
-  ...(isTLS && { tls: { rejectUnauthorized: false } }),
-};
-
-// Resilient configuration for BullMQ worker (allows retries and offline queue)
-export const resilientConfig = {
-  ...commonOptions,
-  connectTimeout: 20000,
-  enableOfflineQueue: true,
-};
-
-// Strict, fail-fast connection for API requests (prevents hangs)
+// Shared configuration for all Redis needs (API, Queue, and Worker)
+// We use a resilient approach: allow buffering (offline queue) but with a connection timeout.
 const redisConnection = new Redis(REDIS_URL, {
-  ...commonOptions,
-  connectTimeout: 5000,
-  enableOfflineQueue: false,
+  maxRetriesPerRequest: null, // Required for BullMQ
+  connectTimeout: 15000,
+  keepAlive: 30000,
+  enableOfflineQueue: true, // Allow commands to buffer until ready
   retryStrategy(times) {
-    return Math.min(times * 500, 10000);
+    return Math.min(times * 1000, 30000);
   },
+  ...(isTLS && { tls: { rejectUnauthorized: false } }),
 });
 
 redisConnection.on("connect", () => {
-  logger.info("Connected to Redis (Direct Client)");
+  logger.info("Connected to Redis");
 });
 
 redisConnection.on("error", (err) => {
-  logger.error("Redis connection error (Direct Client)", { error: err.message });
+  logger.error("Redis connection error", { error: err.message });
 });
 
 export default redisConnection;

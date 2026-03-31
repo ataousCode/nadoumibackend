@@ -14,14 +14,10 @@ class QueueService {
     this.worker = null;
 
     if (process.env.NODE_ENV !== 'test') {
-      const queueConnection = new Redis(REDIS_URL, resilientConfig);
-      
-      queueConnection.on('error', (err) => logger.error('Queue Redis Error', { error: err.message }));
-      queueConnection.on('connect', () => logger.info('Queue Redis Connected'));
-
       this.notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
-        connection: queueConnection
+        connection: redisConnection
       })
+      logger.info('Notification Queue initialized');
     }
   }
 
@@ -48,15 +44,6 @@ class QueueService {
   }
 
   initializeWorker() {
-    const workerConnection = new Redis(REDIS_URL, {
-      ...resilientConfig,
-      maxRetriesPerRequest: null,
-    });
-
-    workerConnection.on('error', (err) => logger.error('Worker Redis Error', { error: err.message }));
-    workerConnection.on('connect', () => logger.info('Worker Redis Connected'));
-    workerConnection.on('ready', () => logger.info('Worker Redis Ready'));
-
     this.worker = new Worker(
       NOTIFICATION_QUEUE_NAME,
       async (job) => {
@@ -84,8 +71,11 @@ class QueueService {
           throw error
         }
       },
-      { connection: workerConnection }
+      { connection: redisConnection }
     )
+
+    this.worker.on('ready', () => logger.info('Notification Worker is Ready'));
+    this.worker.on('error', (err) => logger.error('Notification Worker Redis Error', { error: err.message }));
 
     this.worker.on('failed', (job, err) => {
       logger.error(`Notification job ${job?.id} failed permanently`, { error: err.message })
