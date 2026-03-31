@@ -16,6 +16,7 @@ class EmailService {
   }
 
   // Base method to audit and queue a notification
+  // Base method to audit and send a notification directly (Queue bypassed for reliability)
   async _queueNotification(type, recipient, subject, template, content) {
     try {
       const notification = await notificationRepository.create({
@@ -25,42 +26,32 @@ class EmailService {
         template,
         content,
         status: 'pending'
-      })
+      });
 
-      // Fire and forget: don't await the background job addition.
-      // This ensures the main request (like register/login) is NOT blocked by Redis latency.
-      queueService
-        .addNotificationJob({
-          notificationId: notification.id,
-          type,
-          recipient,
-          subject,
-          template,
-          content,
-        })
-        .catch(async (err) => {
-          logger.error("Background queue addition failed, attempting DIRECT send as fallback:", {
-            error: err.message,
-            notificationId: notification.id,
-          });
-          
-          // Emergency DIRECT send if Redis queue is failing
-          try {
-            await this._performSend(recipient, subject, template, content);
-            await notificationRepository.update(notificationId, {
-              status: 'sent',
-              sentAt: new Date()
-            });
-            logger.info("Direct fallback send SUCCESS", { notificationId: notification.id });
-          } catch (sendErr) {
-            logger.error("Direct fallback send FAILED", { error: sendErr.message, notificationId: notification.id });
-          }
+      // BYPASS THE QUEUE: Send directly for maximum reliability
+      try {
+        await this._performSend(recipient, subject, template, content);
+        await notificationRepository.update(notification.id, {
+          status: 'sent',
+          sentAt: new Date()
         });
+        logger.info("Direct email send SUCCESS", { notificationId: notification.id, recipient });
+      } catch (sendErr) {
+        logger.error("Direct email send FAILED", { 
+          error: sendErr.message, 
+          notificationId: notification.id,
+          recipient 
+        });
+        await notificationRepository.update(notification.id, {
+          status: 'failed',
+          error: sendErr.message
+        });
+      }
 
-      return notification
+      return notification;
     } catch (error) {
-      logger.error('Error queuing notification', { error: error.message, recipient, template })
-      return null
+      logger.error('Error creating notification record', { error: error.message, recipient, template });
+      return null;
     }
   }
 
