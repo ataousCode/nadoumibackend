@@ -95,8 +95,15 @@ class MessageController {
   });
 
   uploadFile = asyncHandler(async (req, res) => {
+    const userId = req.user?.id || req.student?.id || req.admin?.id;
+    console.log(`[UPLOAD TRACE] Request from User ID: ${userId || 'Unknown'}`);
+    console.log(`[UPLOAD TRACE] Filename: ${req.file?.originalname || 'Missing'}`);
+    console.log(`[UPLOAD TRACE] MIME Type: ${req.file?.mimetype || 'Missing'}`);
+    console.log(`[UPLOAD TRACE] Size: ${req.file?.size || 0} bytes`);
+
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      console.error('[UPLOAD TRACE] FAILED: No file was received by the server.');
+      return res.status(400).json({ message: "No file was received. Please ensure you selected a valid file." });
     }
 
     const { conversationId } = req.params;
@@ -106,21 +113,32 @@ class MessageController {
     // Detect type from MIME type
     const isImage = mimeType.startsWith('image/');
 
-    // Upload to storage
-    const result = await storageService.upload(req.file.buffer, {
-      folder: `messages/${conversationId}`,
-      filename: originalName,
-      optimize: isImage, // Optimize only images
-    });
+    try {
+      console.log(`[UPLOAD TRACE] Attempting Cloudinary storage for conversation: ${conversationId}`);
+      // Upload to storage
+      const result = await storageService.upload(req.file.buffer, {
+        folder: `messages/${conversationId}`,
+        filename: originalName,
+        optimize: isImage, // Optimize only images
+      });
 
-    // Return structured metadata
-    sendSuccess(res, {
-      url: result.url,
-      name: originalName,   // Always the original filename, NOT the OSS key
-      size: result.size,    // Human-readable size from storage service
-      type: isImage ? 'image' : 'file', // Crisp type: 'image' or 'file'
-      mimeType,
-    });
+      console.log(`[UPLOAD TRACE] SUCCESS: File stored at ${result.url}`);
+
+      // Return structured metadata
+      sendSuccess(res, {
+        url: result.url,
+        name: originalName,   // Always the original filename, NOT the OSS key
+        size: result.size,    // Human-readable size from storage service
+        type: isImage ? 'image' : 'file', // Crisp type: 'image' or 'file'
+        mimeType,
+      });
+    } catch (err) {
+      console.error('[UPLOAD TRACE] STORAGE FAILED:', err.message);
+      res.status(500).json({ 
+        message: `Internal Storage Error: ${err.message}`,
+        details: err.message
+      });
+    }
   });
 }
 

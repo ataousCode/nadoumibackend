@@ -4,6 +4,13 @@ import path from "node:path";
 import logger from "./logger.js";
 
 // Configure Cloudinary once on module load
+console.log('[STORAGE] Initializing Cloudinary service...');
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY) {
+  console.warn('[STORAGE] CRITICAL: Cloudinary credentials missing from process.env');
+} else {
+  console.log(`[STORAGE] Cloudinary configured for name: ${process.env.CLOUDINARY_CLOUD_NAME}`);
+}
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -83,8 +90,9 @@ class StorageService {
         publicId: result.public_id, // For future deletion
       };
     } catch (error) {
+      console.error('[STORAGE] FULL ERROR OBJECT:', JSON.stringify(error, null, 2));
       logger.error("Cloudinary upload failed", { error: error.message, filename });
-      throw new Error(`Upload failed: ${error.message}`);
+      throw new Error(`Cloudinary Error: ${error.message}`);
     }
   }
 
