@@ -120,20 +120,6 @@ class ScholarshipService extends BaseService {
       ];
     }
 
-    // SMART FALLBACK LOGIC for Home Page sections
-    // If we're filtering by a SINGLE specialty flag for the home page, use smart fetch
-    const specialtyFlags = ['isRecommended', 'isHot', 'isTop'];
-    const activeFlags = specialtyFlags.filter(f => filters[f] === "true" || filters[f] === true);
-
-    if (activeFlags.length === 1 && !search && !category && !country && !field) {
-      const type = activeFlags[0];
-      const scholarships = await this.repository.findSpecial(type, parseInt(limit));
-      return {
-        scholarships,
-        pagination: { total: scholarships.length, page: 1, limit: parseInt(limit), pages: 1 }
-      };
-    }
-
     const { skip, take } = parsePagination(page, limit);
 
     const [scholarships, total] = await Promise.all([
@@ -151,7 +137,9 @@ class ScholarshipService extends BaseService {
   }
 
   async getFeatured() {
-    return this.repository.findFeatured();
+    return cacheService.getOrSet("scholarships:featured", () =>
+      this.repository.findFeatured(),
+    );
   }
 
   async create(scholarshipData, adminId) {

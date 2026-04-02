@@ -31,21 +31,12 @@ class UniversityRepository extends BaseRepository {
   }
 
   async findAllSpecial(type, limit = 6) {
-    // 1. Try to find specifically flagged ones first
-    const special = await super.findAll({
+    // Strictly return only specifically flagged items
+    return await super.findAll({
       where: {
         status: "active",
         [type]: true
       },
-      take: limit,
-      include: { scholarships: true }
-    });
-
-    if (special.length > 0) return special;
-
-    // 2. Fallback: Return the most recently updated active ones
-    return await super.findAll({
-      where: { status: "active" },
       take: limit,
       include: { scholarships: true }
     });
