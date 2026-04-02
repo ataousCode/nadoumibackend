@@ -412,7 +412,8 @@ model Conversation {
   admin         Admin?    @relation(fields: [adminId], references: [id])
   lastMessage   String?
   lastMessageAt DateTime  @default(now())
-  unreadCount   Int       @default(0)
+  unreadCountStudent Int      @default(0)
+  unreadCountAdmin   Int      @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   messages      Message[]

@@ -29,8 +29,8 @@ class MessageService extends BaseService {
       throw new Error("Unauthorized to access this conversation");
     }
     
-    // Reset unread count and mark messages as read
-    await conversationRepository.resetUnreadCount(conversationId);
+    // Reset Student-specific unread count and mark messages as read
+    await conversationRepository.resetUnreadCountStudent(conversationId);
     await messageRepository.markAsRead(conversationId, studentId);
     
     // Broadcast read status
@@ -47,8 +47,8 @@ class MessageService extends BaseService {
       throw new Error("Unauthorized to access this conversation");
     }
 
-    // Reset unread count and mark messages as read
-    await conversationRepository.resetUnreadCount(conversationId);
+    // Reset Admin-specific unread count and mark messages as read
+    await conversationRepository.resetUnreadCountAdmin(conversationId);
     await messageRepository.markAsRead(conversationId, adminId);
 
     // Broadcast read status
@@ -133,9 +133,13 @@ class MessageService extends BaseService {
       console.error("Socket broadcast failed:", err);
     }
 
-    // If sent by student, increment unread count for admin (or vice versa)
+    // Properly increment unread count for the RECIPIENT
     if (senderRole === "student") {
-      await conversationRepository.incrementUnreadCount(conversation.id);
+      // Notify Admin
+      await conversationRepository.incrementUnreadCountAdmin(conversation.id);
+    } else if (senderRole === "admin") {
+      // Notify Student
+      await conversationRepository.incrementUnreadCountStudent(conversation.id);
     }
 
     return message;

@@ -72,7 +72,8 @@ class ConversationRepository extends BaseRepository {
       data: {
         studentId,
         adminId: adminId || null,
-        unreadCount: 0,
+        unreadCountStudent: 0,
+        unreadCountAdmin: 0,
         lastMessageAt: new Date(),
       },
       include: {
@@ -97,20 +98,38 @@ class ConversationRepository extends BaseRepository {
     });
   }
 
-  async incrementUnreadCount(id) {
+  async incrementUnreadCountStudent(id) {
     return await this.model.update({
       where: { id },
       data: {
-        unreadCount: { increment: 1 },
+        unreadCountStudent: { increment: 1 },
       },
     });
   }
 
-  async resetUnreadCount(id) {
+  async incrementUnreadCountAdmin(id) {
     return await this.model.update({
       where: { id },
       data: {
-        unreadCount: 0,
+        unreadCountAdmin: { increment: 1 },
+      },
+    });
+  }
+
+  async resetUnreadCountStudent(id) {
+    return await this.model.update({
+      where: { id },
+      data: {
+        unreadCountStudent: 0,
+      },
+    });
+  }
+
+  async resetUnreadCountAdmin(id) {
+    return await this.model.update({
+      where: { id },
+      data: {
+        unreadCountAdmin: 0,
       },
     });
   }
