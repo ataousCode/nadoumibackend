@@ -9,11 +9,11 @@ export const universitySchema = z.object({
   city: z.string().optional(),
   province: z.string().optional(),
   type: z.enum(["Public", "Private"]).default("Public"),
-  foundedYear: z.number().int().optional(),
-  totalStudents: z.number().int().optional(),
-  internationalStudents: z.number().int().optional(),
-  facultyCount: z.number().int().optional(),
-  numberOfPrograms: z.number().int().optional(),
+  foundedYear: z.coerce.number().int().optional(),
+  totalStudents: z.coerce.number().int().optional(),
+  internationalStudents: z.coerce.number().int().optional(),
+  facultyCount: z.coerce.number().int().optional(),
+  numberOfPrograms: z.coerce.number().int().optional(),
   introduction: z.string().optional(),
   description: z.string().optional(),
   history: z.string().optional(),
@@ -38,7 +38,7 @@ export const universitySchema = z.object({
     .array(
       z.object({
         type: z.string(),
-        pricePerYear: z.union([z.number(), z.string()]),
+        pricePerYear: z.coerce.number().optional().or(z.string()),
         feeUnit: z.string().optional(),
         facilities: z.array(z.string()).optional(),
         notes: z.string().optional(),
@@ -56,7 +56,7 @@ export const universitySchema = z.object({
   officePhone: z.string().optional(),
   logo: z.string().optional(),
   bannerImage: z.string().optional(),
-  qsRank: z.number().int().optional().nullable(),
+  qsRank: z.coerce.number().int().optional().nullable(),
   albums: z.array(z.string()).optional(),
   rankings: z
     .array(
@@ -67,15 +67,15 @@ export const universitySchema = z.object({
       }),
     )
     .optional(),
-  isRecommended: z.boolean().optional(),
-  isPartner: z.boolean().optional(),
-  isTop: z.boolean().optional(),
+  isRecommended: z.coerce.boolean().optional(),
+  isPartner: z.coerce.boolean().optional(),
+  isTop: z.coerce.boolean().optional(),
   recommendationNotes: z.string().optional(),
   requiredDocuments: z
     .array(
       z.object({
         name: z.string(),
-        required: z.boolean().default(true),
+        required: z.coerce.boolean().default(true),
         notes: z.string().optional(),
       }),
     )

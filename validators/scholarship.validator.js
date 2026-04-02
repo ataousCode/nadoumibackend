@@ -23,8 +23,8 @@ export const scholarshipSchema = z.object({
   field: z.string().optional(),
   programName: z.string().optional(),
   degree: z.string().optional(),
-  duration: z.number().int().nonnegative().optional(),
-  scholarshipDuration: z.number().int().nonnegative().optional(),
+  duration: z.coerce.number().int().nonnegative().optional(),
+  scholarshipDuration: z.coerce.number().int().nonnegative().optional(),
   scholarshipDurationText: z.string().optional(),
   intake: z.string().optional(),
   startDate: z
@@ -37,32 +37,32 @@ export const scholarshipSchema = z.object({
     .optional(),
 
   // Requirements
-  ageMin: z.number().int().nonnegative().optional(),
-  ageMax: z.number().int().nonnegative().optional(),
+  ageMin: z.coerce.number().int().nonnegative().optional(),
+  ageMax: z.coerce.number().int().nonnegative().optional(),
   acceptedCountries: z.array(z.string()).optional(),
   chinaVisitPolicy: z.string().optional(),
-  acceptMinors: z.boolean().optional(),
+  acceptMinors: z.coerce.boolean().optional(),
   currentLocationPolicy: z.string().optional(),
   scoreRequirements: z.string().optional(),
 
   // University Fees
-  originalTuitionFee: z.number().nonnegative().optional(),
-  tuitionFeeAfterScholarship: z.number().nonnegative().optional(),
-  accommodationFeeQuad: z.number().nonnegative().optional(),
-  accommodationFeeAfterScholarship: z.number().nonnegative().optional(),
+  originalTuitionFee: z.coerce.number().nonnegative().optional(),
+  tuitionFeeAfterScholarship: z.coerce.number().nonnegative().optional(),
+  accommodationFeeQuad: z.coerce.number().nonnegative().optional(),
+  accommodationFeeAfterScholarship: z.coerce.number().nonnegative().optional(),
   registrationFee: z.string().optional(),
 
   // Nadoumi Agent Fees
-  nadoumiApplicationFee: z.number().nonnegative().optional(),
-  nadoumiServiceFee: z.number().nonnegative().optional(),
+  nadoumiApplicationFee: z.coerce.number().nonnegative().optional(),
+  nadoumiServiceFee: z.coerce.number().nonnegative().optional(),
 
   stipend: z.any().optional(),
   accommodationFee: z.any().optional(),
   insurance: z.string().optional(),
   teachingLanguage: z.enum(["English", "Chinese", "Both"]).default("English"),
-  isRecommended: z.boolean().optional(),
-  isHot: z.boolean().optional(),
-  isTop: z.boolean().optional(),
+  isRecommended: z.coerce.boolean().optional(),
+  isHot: z.coerce.boolean().optional(),
+  isTop: z.coerce.boolean().optional(),
   recommendationNotes: z.string().optional(),
   applicationDocuments: z.array(z.any()).optional(),
   requirements: z.any().optional(),
@@ -75,8 +75,7 @@ export const scholarshipSchema = z.object({
   tags: z.array(z.string()).optional(),
   additionalFees: z.any().optional(),
   coverImage: z.string().optional(),
-  isHot: z.boolean().optional(),
-  availableSlots: z.number().int().nonnegative().default(1),
+  availableSlots: z.coerce.number().int().nonnegative().default(1),
   status: z
     .enum(["draft", "published", "closed", "active", "inactive", "limited"])
     .default("draft"),
