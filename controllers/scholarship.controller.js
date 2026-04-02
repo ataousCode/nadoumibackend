@@ -31,7 +31,15 @@ class ScholarshipController {
   });
 
   update = asyncHandler(async (req, res) => {
+    logger.info("UPDATE SCHOLARSHIP START", {
+      id: req.params.id,
+      adminId: req.admin?.id,
+      body: req.body,
+    });
+    
     const validatedData = validateScholarshipUpdate(req.body);
+    logger.info("UPDATE SCHOLARSHIP VALIDATED DATA", { validatedData });
+    
     const scholarship = await scholarshipService.update(
       req.params.id,
       validatedData,

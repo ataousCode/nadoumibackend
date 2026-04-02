@@ -79,6 +79,16 @@ export const scholarshipSchema = z.object({
   status: z
     .enum(["draft", "published", "closed", "active", "inactive", "limited"])
     .default("draft"),
+  // Allow internal fields to be passed without error, but they'll be sanitized later
+  id: z.any().optional(),
+  uuid: z.any().optional(),
+  createdAt: z.any().optional(),
+  updatedAt: z.any().optional(),
+  deletedAt: z.any().optional(),
+  createdBy: z.any().optional(),
+  updatedBy: z.any().optional(),
+  university: z.any().optional(),
+  programs: z.any().optional(),
 });
 
 export const validateScholarship = (data) => {

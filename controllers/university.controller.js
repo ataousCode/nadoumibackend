@@ -24,7 +24,15 @@ class UniversityController {
   });
 
   update = asyncHandler(async (req, res) => {
+    logger.info("UPDATE UNIVERSITY START", {
+      id: req.params.id,
+      adminId: req.admin?.id,
+      body: req.body,
+    });
+    
     const validatedData = validateUniversityUpdate(req.body);
+    logger.info("UPDATE UNIVERSITY VALIDATED DATA", { validatedData });
+    
     const university = await universityService.update(
       req.params.id,
       validatedData,

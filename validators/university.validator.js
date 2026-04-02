@@ -82,6 +82,14 @@ export const universitySchema = z.object({
     .optional(),
   majors: z.any().optional(),
   status: z.enum(["active", "inactive", "draft"]).default("active"),
+  // Allow internal fields to be passed without error, but they'll be sanitized later
+  id: z.any().optional(),
+  uuid: z.any().optional(),
+  createdAt: z.any().optional(),
+  updatedAt: z.any().optional(),
+  deletedAt: z.any().optional(),
+  createdBy: z.any().optional(),
+  updatedBy: z.any().optional(),
 });
 
 export const validateUniversity = (data) => {

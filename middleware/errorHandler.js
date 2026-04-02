@@ -16,29 +16,20 @@ export const errorHandler = (err, _req, res, _next) => {
     err.name === "ZodError" ||
     (err.errors && err.statusCode === 400)
   ) {
-    let message = err.message || "Validation failed";
-    let messageErrors = err.errors || {};
+    error.statusCode = 400;
+    error.message = err.message || "Validation failed";
+    error.errors = err.errors || {};
 
     if (err.name === "ZodError") {
-      message = "Validation failed";
+      error.message = "Validation failed";
       const issues = err.issues || err.errors || [];
-      messageErrors = issues.reduce((acc, curr) => {
+      error.errors = issues.reduce((acc, curr) => {
         const path = curr.path.join(".");
         acc[path] = curr.message;
         return acc;
       }, {});
     }
-
-    error = new AppError(message, 400);
-    error.errors = messageErrors;
-    return res.status(400).json({
-      success: false,
-      error: {
-        message,
-        code: "VALIDATION_ERROR",
-        errors: error.errors,
-      },
-    });
+    error.code = "VALIDATION_ERROR";
   }
 
   if (err.name === "CastError") {
