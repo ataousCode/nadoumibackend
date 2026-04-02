@@ -78,7 +78,9 @@ export const errorHandler = (err, _req, res, _next) => {
       message: error.message || "Server Error",
       code: error.code || "INTERNAL_ERROR",
       ...(error.errors && { errors: error.errors }),
-      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+      // Always show stack and more info in dev for better debugging of these persistent errors
+      token: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+      details: process.env.NODE_ENV !== "production" ? err.message : undefined,
     },
   });
 };

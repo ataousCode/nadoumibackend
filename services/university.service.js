@@ -106,11 +106,15 @@ class UniversityService extends BaseService {
   async update(id, universityData, adminId) {
     const sanitizedData = sanitizeUpdateData(universityData);
     
-    // Ensure nested objects like 'majors' or computed fields aren't sent directly if they cause issues
+    // Explicitly handle fields that shouldn't be flattened or removed
     const data = {
       ...sanitizedData,
-      numberOfPrograms: this._calculateProgramCount(universityData.majors),
+      ...(universityData.majors && {
+        majors: universityData.majors,
+        numberOfPrograms: this._calculateProgramCount(universityData.majors),
+      }),
     };
+    
     return super.update(id, data, adminId);
   }
 

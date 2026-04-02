@@ -34,15 +34,9 @@ export const sanitizeUpdateData = (data) => {
     "createdAt",
     "updatedAt",
     "deletedAt",
-    "scholarshipId",
-    "universityId",
     "createdBy",
     "updatedBy",
     "adminId",
-    "programs",
-    "universities",
-    "majors",
-    "applicationDeadline" // Handled separately in some services
   ];
   
   readOnlyFields.forEach(field => {

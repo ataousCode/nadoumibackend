@@ -179,12 +179,8 @@ class ScholarshipService extends BaseService {
 
   async update(id, updateData, adminId) {
     const { universities, programs, adminId: _, ...rest } = updateData;
-
-    // For nested programs, we'll perform a delete-and-recreate strategy
-    // to ensure the state exactly matches the form submission.
     const sanitizedData = sanitizeUpdateData(rest);
     
-    // Specifically handle applicationDeadline if present in rest or updateData
     if (updateData.applicationDeadline) {
       sanitizedData.applicationDeadline = new Date(updateData.applicationDeadline);
     }
