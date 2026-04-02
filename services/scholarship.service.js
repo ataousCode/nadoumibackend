@@ -12,6 +12,7 @@ import {
   parsePagination,
   buildPaginatedResponse,
 } from "../utils/pagination.js";
+import { sanitizeUpdateData } from "../utils/prisma.js";
 
 class ScholarshipService extends BaseService {
   constructor() {
@@ -181,10 +182,17 @@ class ScholarshipService extends BaseService {
 
     // For nested programs, we'll perform a delete-and-recreate strategy
     // to ensure the state exactly matches the form submission.
+    const sanitizedData = sanitizeUpdateData(rest);
+    
+    // Specifically handle applicationDeadline if present in rest or updateData
+    if (updateData.applicationDeadline) {
+      sanitizedData.applicationDeadline = new Date(updateData.applicationDeadline);
+    }
+
     const scholarship = await super.update(
       id,
       {
-        ...rest,
+        ...sanitizedData,
         ...(universities && {
           universities: {
             set: universities.map((uid) => ({ id: uid })),

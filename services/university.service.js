@@ -10,6 +10,7 @@ import {
   parsePagination,
   buildPaginatedResponse,
 } from "../utils/pagination.js";
+import { sanitizeUpdateData } from "../utils/prisma.js";
 
 class UniversityService extends BaseService {
   constructor() {
@@ -103,8 +104,11 @@ class UniversityService extends BaseService {
   }
 
   async update(id, universityData, adminId) {
+    const sanitizedData = sanitizeUpdateData(universityData);
+    
+    // Ensure nested objects like 'majors' or computed fields aren't sent directly if they cause issues
     const data = {
-      ...universityData,
+      ...sanitizedData,
       numberOfPrograms: this._calculateProgramCount(universityData.majors),
     };
     return super.update(id, data, adminId);

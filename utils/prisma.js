@@ -20,3 +20,34 @@ export const isUuid = (id) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{11,12}$/i
   return uuidRegex.test(id)
 }
+
+/**
+ * Sanitize update data by removing standard read-only fields
+ */
+export const sanitizeUpdateData = (data) => {
+  if (!data || typeof data !== "object") return data;
+  
+  const sanitized = { ...data };
+  const readOnlyFields = [
+    "id",
+    "uuid",
+    "createdAt",
+    "updatedAt",
+    "deletedAt",
+    "scholarshipId",
+    "universityId",
+    "createdBy",
+    "updatedBy",
+    "adminId",
+    "programs",
+    "universities",
+    "majors",
+    "applicationDeadline" // Handled separately in some services
+  ];
+  
+  readOnlyFields.forEach(field => {
+    delete sanitized[field];
+  });
+  
+  return sanitized;
+};
