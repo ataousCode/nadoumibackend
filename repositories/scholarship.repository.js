@@ -38,7 +38,6 @@ class ScholarshipRepository extends BaseRepository {
       where: {
         status: "published",
         isRecommended: true,
-        applicationDeadline: { gte: new Date() },
       },
       take: limit,
       include: {
@@ -56,7 +55,6 @@ class ScholarshipRepository extends BaseRepository {
       where: {
         status: "published",
         [type]: true,
-        applicationDeadline: { gte: new Date() },
       },
       take: limit,
       include: {

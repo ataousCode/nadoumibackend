@@ -9,6 +9,22 @@ class CacheService {
   }
 
   /**
+   * Helper to add a timeout to any promise
+   */
+  async withTimeout(promise, ms = 2000) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("Redis operation timed out")), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  /**
    * Get data from cache or fetch and cache it
    * @param {string} key Cache key
    * @param {Function} fetcher Async function to fetch data if not in cache
@@ -16,7 +32,7 @@ class CacheService {
    */
   async getOrSet(key, fetcher, ttl = this.defaultTTL) {
     try {
-      const cachedData = await this.redis.get(key);
+      const cachedData = await this.withTimeout(this.redis.get(key));
 
       if (cachedData) {
         logger.debug("Cache hit", { key });
@@ -27,7 +43,7 @@ class CacheService {
       const data = await fetcher();
 
       if (data !== undefined && data !== null) {
-        await this.redis.set(key, JSON.stringify(data), "EX", ttl);
+        await this.withTimeout(this.redis.set(key, JSON.stringify(data), "EX", ttl));
       }
 
       return data;
@@ -43,7 +59,7 @@ class CacheService {
    */
   async invalidate(key) {
     try {
-      await this.redis.del(key);
+      await this.withTimeout(this.redis.del(key));
       logger.debug("Cache invalidated", { key });
     } catch (error) {
       logger.error("Cache invalidation error", { key, error: error.message });
