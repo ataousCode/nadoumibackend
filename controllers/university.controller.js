@@ -2,6 +2,7 @@ import universityService from "../services/university.service.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { sendSuccess, sendCreated } from "../utils/response.js";
 import { validateUniversity, validateUniversityUpdate } from "../validators/university.validator.js";
+import logger from "../utils/logger.js";
 
 class UniversityController {
   getAll = asyncHandler(async (req, res) => {
